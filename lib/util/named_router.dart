@@ -26,6 +26,9 @@ class NamedRouter {
   // file reader
   static const fileReader = "/fileReader";
 
+  // text reader
+  static const textReader = "/textReader";
+
   // web
   static const web = "/web";
 

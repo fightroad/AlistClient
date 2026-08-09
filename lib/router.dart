@@ -13,6 +13,7 @@ import 'package:alist/screen/player_settings_screen.dart';
 import 'package:alist/screen/settings_screen.dart';
 import 'package:alist/screen/share_manager_screen.dart';
 import 'package:alist/screen/splash_screen.dart';
+import 'package:alist/screen/text_reader_screen.dart';
 import 'package:alist/screen/uploading_files_screen.dart';
 import 'package:alist/screen/video_player_screen.dart';
 import 'package:alist/screen/web_screen.dart';
@@ -35,6 +36,7 @@ class AlistRouter {
         name: NamedRouter.audioPlayer, page: () => AudioPlayerScreen()),
     GetPage(name: NamedRouter.gallery, page: () => GalleryScreen()),
     GetPage(name: NamedRouter.fileReader, page: () => FileReaderScreen()),
+    GetPage(name: NamedRouter.textReader, page: () => TextReaderScreen()),
     GetPage(name: NamedRouter.web, page: () => const WebScreen()),
     GetPage(name: NamedRouter.pdfReader, page: () => PdfReaderScreen()),
     GetPage(name: NamedRouter.uploadingFiles, page: () => const UploadingFilesScreen()),

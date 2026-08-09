@@ -10,6 +10,7 @@ import 'package:alist/screen/audio_player_screen.dart';
 import 'package:alist/screen/file_reader_screen.dart';
 import 'package:alist/screen/gallery_screen.dart';
 import 'package:alist/screen/pdf_reader_screen.dart';
+import 'package:alist/screen/text_reader_screen.dart';
 import 'package:alist/screen/video_player_screen.dart';
 import 'package:alist/util/alist_plugin.dart';
 import 'package:alist/util/constant.dart';
@@ -607,6 +608,20 @@ class DownloadManagerController extends GetxController {
         break;
       case FileType.markdown:
         _previewMarkdown(downloadItem);
+        break;
+      case FileType.txt:
+      case FileType.code:
+        Get.toNamed(
+          NamedRouter.textReader,
+          arguments: {
+            "textReaderItem": TextReaderItem(
+              name: downloadItem.name,
+              remotePath: downloadItem.remotePath ?? "",
+              sign: downloadItem.sign,
+              localPath: downloadItem.savedPath.value,
+            ),
+          },
+        );
         break;
       default:
         var fileReaderItem = FileReaderItem(

@@ -3,7 +3,15 @@ import 'dart:io';
 import 'package:flustars/flustars.dart';
 
 class DownloadHttpClient {
-  final HttpClient _httpClient = HttpClient()..autoUncompress = false;
+  static const _maxRedirectTimes = 20;
+  static const _connectTimeout = Duration(seconds: 20);
+  static const _idleTimeout = Duration(seconds: 60);
+
+  final HttpClient _httpClient = HttpClient()
+    ..autoUncompress = false
+    ..connectionTimeout = _connectTimeout
+    ..idleTimeout = _idleTimeout;
+
   int _lastLimitRequestTime = 0;
   bool _requesting = false;
 
@@ -14,34 +22,61 @@ class DownloadHttpClient {
   Future<HttpClientResponse> get(String url,
       {Map<String, dynamic>? headers, int? limitFrequency}) async {
     if (limitFrequency == null || limitFrequency < 1) {
-      return _getInner(url, headers: headers);
+      return _getWithRedirects(url, headers: headers);
     }
 
+    final minIntervalMs = limitFrequency * 1000;
     int now = DateTime.now().millisecondsSinceEpoch;
-    if (_requesting || now - _lastLimitRequestTime < limitFrequency * 1000) {
+    if (_requesting || now - _lastLimitRequestTime < minIntervalMs) {
       do {
         await Future.delayed(const Duration(milliseconds: 200));
         now = DateTime.now().millisecondsSinceEpoch;
-      } while (_requesting || now - _lastLimitRequestTime < limitFrequency);
+      } while (_requesting || now - _lastLimitRequestTime < minIntervalMs);
     }
 
     _requesting = true;
     try {
-      return await _getInner(url, headers: headers);
+      return await _getWithRedirects(url, headers: headers);
     } finally {
       _requesting = false;
       _lastLimitRequestTime = DateTime.now().millisecondsSinceEpoch;
     }
   }
 
-  Future<HttpClientResponse> _getInner(String url,
+  /// Manually follow redirects so Host/Range headers from the OpenList URL
+  /// are not incorrectly reused on Alibaba CDN temporary links.
+  Future<HttpClientResponse> _getWithRedirects(String url,
       {Map<String, dynamic>? headers}) async {
-    HttpClientRequest request =
-        await _httpClient.openUrl("GET", Uri.parse(url));
-    headers?.forEach((key, value) {
-      LogUtil.d("header $key=$value");
-      request.headers.set(key, value);
-    });
-    return request.close();
+    var uri = Uri.parse(url);
+    final originalHeaders = <String, dynamic>{...?headers};
+    // Never force Host across redirects; let HttpClient set it per hop.
+    originalHeaders.remove(HttpHeaders.hostHeader);
+    originalHeaders.remove("Host");
+    originalHeaders.remove("host");
+
+    HttpClientResponse? response;
+    for (var i = 0; i <= _maxRedirectTimes; i++) {
+      final request = await _httpClient.openUrl("GET", uri);
+      request.followRedirects = false;
+      originalHeaders.forEach((key, value) {
+        LogUtil.d("header $key=$value");
+        request.headers.set(key, value);
+      });
+
+      response = await request.close().timeout(_idleTimeout);
+      if (!response.isRedirect) {
+        return response;
+      }
+
+      final location = response.headers.value(HttpHeaders.locationHeader);
+      await response.drain();
+      if (location == null || location.isEmpty) {
+        throw HttpException("Redirect without Location from $uri");
+      }
+      uri = uri.resolve(location);
+      LogUtil.d("download redirect -> $uri");
+    }
+
+    throw HttpException("Too many redirects for $url");
   }
 }

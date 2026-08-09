@@ -6,6 +6,7 @@ import 'package:alist/util/download/download_manager.dart';
 import 'package:alist/util/download/download_task.dart';
 import 'package:alist/util/download/download_task_status.dart';
 import 'package:alist/util/file_type.dart';
+import 'package:alist/util/file_utils.dart';
 import 'package:alist/widget/alist_scaffold.dart';
 import 'package:flustars/flustars.dart';
 import 'package:flutter/material.dart';
@@ -21,7 +22,7 @@ class FileReaderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlistScaffold(
-      appbarTitle: const SizedBox(),
+      appbarTitle: Text(_fileReaderItem.name),
       body: _FileReaderContainer(fileReaderItem: _fileReaderItem),
     );
   }
@@ -39,12 +40,12 @@ class _FileReaderContainer extends StatefulWidget {
 class _FileReaderContainerState extends State<_FileReaderContainer> {
   String? _localPath;
   int _downloadProgress = 0;
-  bool _isOpenSuccessfully = false;
   String? failedMessage;
-  String? fileName;
   DownloadTask? _downloadTask;
   late StreamSubscription _downloadProgressSubscription;
   late StreamSubscription _downloadStatusChangeSubscription;
+
+  bool get _isDownloading => _localPath == null && failedMessage == null;
 
   @override
   void initState() {
@@ -53,19 +54,29 @@ class _FileReaderContainerState extends State<_FileReaderContainer> {
     _downloadProgressSubscription =
         DownloadManager.instance.listenDownloadProgressChange((task) {
       if (task == _downloadTask) {
-        if (task.contentLength != null) {
-          setState(() {
+        setState(() {
+          if (task.contentLength != null && task.contentLength! > 0) {
             _downloadProgress =
-                (task.downloaded / task.contentLength! * 100).round();
-          });
-        }
+                (task.downloaded / task.contentLength! * 100).round().clamp(0, 99);
+          } else if (task.downloaded > 0) {
+            // Unknown total size (common after Aliyun 302): keep spinner text
+            // without a fake 0%.
+            _downloadProgress = -1;
+          }
+        });
       }
     });
     _downloadStatusChangeSubscription =
         DownloadManager.instance.listenDownloadStatusChange((task) {
       if (task == _downloadTask) {
         if (task.status == DownloadTaskStatus.failed) {
-          SmartDialog.showToast(task.failedReason ?? "");
+          setState(() {
+            failedMessage =
+                task.failedReason ?? Intl.fileReaderScreen_downloadFailed.tr;
+            _localPath = "";
+          });
+          SmartDialog.showToast(
+              task.failedReason ?? Intl.fileReaderScreen_downloadFailed.tr);
         } else if (task.status == DownloadTaskStatus.finished) {
           _onDownloadFinish(widget.fileReaderItem.fileType);
         }
@@ -77,57 +88,51 @@ class _FileReaderContainerState extends State<_FileReaderContainer> {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _localPath == null
-                ? const CircularProgressIndicator()
-                : const SizedBox(),
-            fileName != null
-                ? Padding(
-                    padding: const EdgeInsets.only(top: 15),
-                    child: Text(fileName ?? ""),
-                  )
-                : const SizedBox(),
-            Padding(
-              padding: const EdgeInsets.only(top: 15),
-              child: buildOpenFileMessage(),
-            ),
+            if (_isDownloading) ...[
+              const CircularProgressIndicator(),
+              const SizedBox(height: 16),
+              Text(_downloadProgress < 0
+                  ? Intl.fileReaderScreen_downloading.tr
+                  : "$_downloadProgress%"),
+            ] else ...[
+              if (failedMessage != null) ...[
+                Icon(
+                  Icons.error_outline,
+                  size: 40,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  failedMessage!,
+                  textAlign: TextAlign.center,
+                ),
+              ] else ...[
+                Text(
+                  Intl.fileReaderScreen_downloadedHint.tr,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+              if (_localPath != null && _localPath!.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                FilledButton(
+                  onPressed: () => _openFile(_localPath),
+                  child: Text(
+                    widget.fileReaderItem.fileType == FileType.apk &&
+                            Platform.isAndroid
+                        ? Intl.fileReaderScreen_install.tr
+                        : Intl.fileReaderScreen_openAgain.tr,
+                  ),
+                ),
+              ],
+            ],
           ],
         ),
       ),
     );
-  }
-
-  Widget buildOpenFileMessage() {
-    final fileType = widget.fileReaderItem.fileType;
-    if (failedMessage != null) {
-      return Text(failedMessage ?? "");
-    } else if (_downloadProgress < 100) {
-      return Text("$_downloadProgress%");
-    } else if (!_isOpenSuccessfully &&
-        failedMessage == null &&
-        !(fileType == FileType.apk && Platform.isAndroid)) {
-      return Text("$_downloadProgress%");
-    } else if (_isOpenSuccessfully ||
-        (fileType == FileType.apk && Platform.isAndroid)) {
-      String text;
-      if (fileType == FileType.apk && Platform.isAndroid) {
-        text = Intl.fileReaderScreen_install.tr;
-      } else {
-        text = Intl.fileReaderScreen_openAgain.tr;
-      }
-      return FilledButton(
-          onPressed: () {
-            if (null != _localPath) {
-              _openFile(_localPath);
-            }
-          },
-          child: Text(text));
-    } else {
-      return Text(failedMessage ?? "");
-    }
   }
 
   @override
@@ -142,11 +147,25 @@ class _FileReaderContainerState extends State<_FileReaderContainer> {
     final fileType = widget.fileReaderItem.fileType;
     final requestHeaders = <String, dynamic>{};
     var limitFrequency = 0;
-    if (item.provider == "BaiduNetdisk") {
+    if (FileUtils.isBaiduNetdisk(item.provider)) {
       requestHeaders["User-Agent"] = "pan.baidu.com";
-    } else if (item.provider == "AliyundriveOpen") {
+    } else if (FileUtils.needsDownloadRateLimit(item.provider)) {
       // 阿里云盘下载请求频率限制为 1s/次
       limitFrequency = 1;
+    }
+
+    // Already downloaded (e.g. from download manager).
+    if (item.localPath != null &&
+        item.localPath!.isNotEmpty &&
+        File(item.localPath!).existsSync()) {
+      setState(() {
+        _downloadProgress = 100;
+        _localPath = item.localPath;
+      });
+      if (!(fileType == FileType.apk && Platform.isAndroid)) {
+        _openFile(item.localPath);
+      }
+      return;
     }
 
     _downloadTask = await DownloadManager.instance.download(
@@ -158,7 +177,11 @@ class _FileReaderContainerState extends State<_FileReaderContainer> {
       limitFrequency: limitFrequency,
     );
     if (_downloadTask == null) {
-      SmartDialog.showToast("Download failed.");
+      setState(() {
+        failedMessage = Intl.fileReaderScreen_downloadFailed.tr;
+        _localPath = "";
+      });
+      SmartDialog.showToast(Intl.fileReaderScreen_downloadFailed.tr);
       return;
     }
     if (_downloadTask?.status == DownloadTaskStatus.finished) {
@@ -168,62 +191,108 @@ class _FileReaderContainerState extends State<_FileReaderContainer> {
 
   void _onDownloadFinish(FileType? fileType) {
     LogUtil.d("_onDownloadFinish");
-    if (fileType == FileType.apk && Platform.isAndroid) {
-      var fileName = widget.fileReaderItem.name;
-      setState(() {
-        this.fileName = fileName;
-        _downloadProgress = 100;
-        _localPath = _downloadTask?.record.localPath;
-      });
-    } else {
-      var fileName = widget.fileReaderItem.name;
-      setState(() {
-        this.fileName = fileName;
-      });
-      _openFile(_downloadTask?.record.localPath);
+    final path = _downloadTask?.record.localPath;
+    setState(() {
+      _downloadProgress = 100;
+      _localPath = path;
+      failedMessage = null;
+    });
+    if (!(fileType == FileType.apk && Platform.isAndroid)) {
+      _openFile(path);
     }
   }
 
-  _openFile(String? filePath) async {
+  Future<void> _openFile(String? filePath) async {
+    if (filePath == null || filePath.isEmpty) {
+      setState(() {
+        failedMessage = Intl.fileReaderScreen_openFailed_notFound.tr;
+        _localPath = "";
+      });
+      return;
+    }
+    if (!File(filePath).existsSync()) {
+      setState(() {
+        failedMessage = Intl.fileReaderScreen_openFailed_notFound.tr;
+      });
+      return;
+    }
+
     final fileType = widget.fileReaderItem.fileType;
     if (fileType == FileType.apk &&
         Platform.isAndroid &&
         !await Permission.requestInstallPackages.isGranted) {
       _showInstallPermissionDialog();
-    } else {
-      String? openFileType;
-      switch (fileType) {
-        case FileType.txt:
-        case FileType.code:
-          openFileType = "text/plain";
-          break;
-        case FileType.pdf:
-          openFileType = "application/pdf";
-          break;
-        case FileType.apk:
-          openFileType = "application/vnd.android.package-archive";
-          break;
-        default:
-          openFileType = null;
-          break;
-      }
+      return;
+    }
 
-      OpenFile.open(filePath, type: openFileType).then((value) {
-        if (value.type == ResultType.done) {
-          setState(() {
-            _isOpenSuccessfully = true;
-          });
-        } else {
-          setState(() {
-            _isOpenSuccessfully = false;
-            failedMessage = value.message;
-          });
-        }
-      });
+    final openFileType = _mimeForFileType(fileType);
+    try {
+      final value = await OpenFile.open(filePath, type: openFileType);
+      if (!mounted) return;
       setState(() {
         _downloadProgress = 100;
         _localPath = filePath;
+        if (value.type == ResultType.done) {
+          failedMessage = null;
+        } else {
+          failedMessage = _messageForOpenResult(value);
+        }
       });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _downloadProgress = 100;
+        _localPath = filePath;
+        failedMessage = Intl.fileReaderScreen_openFailed_generic.tr;
+      });
+      LogUtil.e(e);
+    }
+  }
+
+  String? _mimeForFileType(FileType? fileType) {
+    switch (fileType) {
+      case FileType.txt:
+      case FileType.code:
+        return "text/plain";
+      case FileType.pdf:
+        return "application/pdf";
+      case FileType.apk:
+        return "application/vnd.android.package-archive";
+      case FileType.word:
+        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+      case FileType.excel:
+        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+      case FileType.ppt:
+        return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+      default:
+        // Let the system infer from extension (.doc/.xls/.zip, etc.).
+        return null;
+    }
+  }
+
+  String _messageForOpenResult(OpenResult value) {
+    switch (value.type) {
+      case ResultType.noAppToOpen:
+        return Intl.fileReaderScreen_openFailed_noApp.tr;
+      case ResultType.permissionDenied:
+        return Intl.fileReaderScreen_openFailed_permission.tr;
+      case ResultType.fileNotFound:
+        return Intl.fileReaderScreen_openFailed_notFound.tr;
+      case ResultType.error:
+      default:
+        final msg = value.message.trim();
+        if (msg.isEmpty || msg.toLowerCase() == "error") {
+          return Intl.fileReaderScreen_openFailed_generic.tr;
+        }
+        // Prefer localized no-app hint when message looks like that case.
+        final lower = msg.toLowerCase();
+        if (lower.contains("no app") ||
+            lower.contains("cannot be opened") ||
+            lower.contains("没有") ||
+            lower.contains("无法")) {
+          return Intl.fileReaderScreen_openFailed_noApp.tr;
+        }
+        return msg;
     }
   }
 

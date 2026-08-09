@@ -123,6 +123,14 @@ class Intl {
   static const String installPermissionDialog_denied = "installPermissionDialog_denied";
   static const String fileReaderScreen_openAgain = "fileReaderScreen_openAgain";
   static const String fileReaderScreen_install = "fileReaderScreen_install";
+  static const String fileReaderScreen_downloadFailed = "fileReaderScreen_downloadFailed";
+  static const String fileReaderScreen_openFailed_noApp = "fileReaderScreen_openFailed_noApp";
+  static const String fileReaderScreen_openFailed_permission = "fileReaderScreen_openFailed_permission";
+  static const String fileReaderScreen_openFailed_notFound = "fileReaderScreen_openFailed_notFound";
+  static const String fileReaderScreen_openFailed_generic = "fileReaderScreen_openFailed_generic";
+  static const String fileReaderScreen_downloadedHint = "fileReaderScreen_downloadedHint";
+  static const String fileReaderScreen_downloading = "fileReaderScreen_downloading";
+  static const String textReaderScreen_tips_tooLarge = "textReaderScreen_tips_tooLarge";
   static const String recentsScreen_noRecord = "recentsScreen_noRecord";
   static const String recentsScreen_menu_delete = "recentsScreen_menu_delete";
   static const String recentsScreen_menu_details = "recentsScreen_menu_details";

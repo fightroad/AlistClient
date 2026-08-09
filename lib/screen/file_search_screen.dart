@@ -10,6 +10,7 @@ import 'package:alist/screen/audio_player_screen.dart';
 import 'package:alist/screen/file_reader_screen.dart';
 import 'package:alist/screen/gallery_screen.dart';
 import 'package:alist/screen/pdf_reader_screen.dart';
+import 'package:alist/screen/text_reader_screen.dart';
 import 'package:alist/screen/video_player_screen.dart';
 import 'package:alist/util/file_password_helper.dart';
 import 'package:alist/util/file_type.dart';
@@ -230,10 +231,12 @@ class FileSearchController extends GetxController {
         _gotoMarkdownScreen(path, file);
         break;
       case FileType.txt:
+      case FileType.code:
+        _gotoTextReaderScreen(path, file);
+        break;
       case FileType.word:
       case FileType.excel:
       case FileType.ppt:
-      case FileType.code:
       case FileType.apk:
       case FileType.compress:
       default:
@@ -319,13 +322,9 @@ class FileSearchController extends GetxController {
     var files = await _loadFilesPrepare(
         path.substringBeforeLast("/")!, path, FileType.video);
     SmartDialog.dismiss();
-    if (files == null) {
+    final index = _indexOfPath(files, path);
+    if (index == null || files == null) {
       return;
-    }
-
-    var index = files.lastIndexWhere((element) => element.path == path);
-    if (index == -1) {
-      index = 0;
     }
     _fileViewingRecord(files[index]);
     var videos = files
@@ -350,13 +349,9 @@ class FileSearchController extends GetxController {
     var files = await _loadFilesPrepare(
         path.substringBeforeLast("/")!, path, FileType.audio);
     SmartDialog.dismiss();
-    if (files == null) {
+    final index = _indexOfPath(files, path);
+    if (index == null || files == null) {
       return;
-    }
-
-    var index = files.lastIndexWhere((element) => element.path == path);
-    if (index == -1) {
-      index = 0;
     }
 
     _fileViewingRecord(files[index]);
@@ -384,13 +379,9 @@ class FileSearchController extends GetxController {
     var files = await _loadFilesPrepare(
         path.substringBeforeLast("/")!, path, FileType.image);
     SmartDialog.dismiss();
-    if (files == null) {
+    final index = _indexOfPath(files, path);
+    if (index == null || files == null) {
       return;
-    }
-
-    var index = files.lastIndexWhere((element) => element.path == path);
-    if (index == -1) {
-      index = 0;
     }
     _fileViewingRecord(files[index]);
     var photos = files
@@ -417,22 +408,18 @@ class FileSearchController extends GetxController {
     var files = await _loadFilesPrepare(
         path.substringBeforeLast("/")!, path, FileType.pdf);
     SmartDialog.dismiss();
-    if (files == null) {
+    final index = _indexOfPath(files, path);
+    if (index == null || files == null) {
       return;
     }
-
-    var index = files.lastIndexWhere((element) => element.path == path);
-    if (index == -1) {
-      index = 0;
-    }
-    var file = files[index];
-    _fileViewingRecord(file);
+    var opened = files[index];
+    _fileViewingRecord(opened);
     var pdfItem = PdfItem(
-      name: file.name,
-      remotePath: file.path,
-      sign: file.sign,
-      provider: file.provider,
-      thumb: file.thumb,
+      name: opened.name,
+      remotePath: opened.path,
+      sign: opened.sign,
+      provider: opened.provider,
+      thumb: opened.thumb,
     );
     Get.toNamed(
       NamedRouter.pdfReader,
@@ -444,52 +431,101 @@ class FileSearchController extends GetxController {
     SmartDialog.showLoading();
     var files = await _loadFilesPrepare(
         path.substringBeforeLast("/")!, path, FileType.markdown);
-    SmartDialog.dismiss();
-    if (files == null) {
+    final index = _indexOfPath(files, path);
+    if (index == null || files == null) {
+      SmartDialog.dismiss();
       return;
     }
-
-    var index = files.lastIndexWhere((element) => element.path == path);
-    if (index == -1) {
-      index = 0;
-    }
-    var file = files[index];
-    _fileViewingRecord(file);
-    var fileLink = await FileUtils.makeFileLink(path, file.sign);
+    var opened = files[index];
+    _fileViewingRecord(opened);
+    var fileLink = await FileUtils.makePreviewUrl(
+      opened.path,
+      opened.sign,
+      provider: opened.provider,
+    );
+    SmartDialog.dismiss();
     if (fileLink != null) {
       Get.toNamed(NamedRouter.web, arguments: {
         "url": fileLink,
-        "title": file.name
+        "title": opened.name
       });
     }
   }
 
-  void _gotoFileReaderScreen(String path, FileSearchRespContent file) async {
+  void _gotoTextReaderScreen(String path, FileSearchRespContent file) async {
     SmartDialog.showLoading();
     var files = await _loadFilesPrepare(
-        path.substringBeforeLast("/")!, path, FileType.markdown);
+        path.substringBeforeLast("/")!, path, null);
+    SmartDialog.dismiss();
+    final index = _indexOfPath(files, path);
+    if (index == null || files == null) {
+      return;
+    }
+    var opened = files[index];
+    _fileViewingRecord(opened);
+    Get.toNamed(
+      NamedRouter.textReader,
+      arguments: {
+        "textReaderItem": TextReaderItem(
+          name: opened.name,
+          remotePath: opened.path,
+          sign: opened.sign,
+          provider: opened.provider,
+        ),
+      },
+    );
+  }
+
+  int? _indexOfPath(List<FileItemVO>? files, String path) {
+    if (files == null) {
+      SmartDialog.showToast(Intl.tips_makeFileLink_failed.tr);
+      return null;
+    }
+    final index = files.lastIndexWhere((element) => element.path == path);
+    if (index < 0) {
+      SmartDialog.showToast(Intl.tips_makeFileLink_failed.tr);
+      return null;
+    }
+    return index;
+  }
+
+  void _gotoFileReaderScreen(String path, FileSearchRespContent file) async {
+    SmartDialog.showLoading();
+    final fileType = FileUtils.getFileType(file.isDir ?? false, file.name ?? "");
+    var files = await _loadFilesPrepare(
+        path.substringBeforeLast("/")!, path, fileType);
+    if (files != null) {
+      var index = files.lastIndexWhere((element) => element.path == path);
+      if (index == -1) {
+        // Type filter missed the file; reload full folder listing.
+        files = await _loadFilesPrepare(
+            path.substringBeforeLast("/")!, path, null);
+      }
+    }
     SmartDialog.dismiss();
     if (files == null) {
       return;
     }
 
-    var index = files.lastIndexWhere((element) => element.path == path);
+    final index = files.lastIndexWhere((element) => element.path == path);
     if (index == -1) {
-      index = 0;
+      SmartDialog.showToast(Intl.tips_makeFileLink_failed.tr);
+      return;
     }
-    var file = files[index];
-    _fileViewingRecord(file);
-    var fileReaderItem = FileReaderItem(
-      name: file.name,
-      remotePath: file.path,
-      sign: file.sign,
-      provider: file.provider,
-      thumb: file.thumb,
-      fileType: FileUtils.getFileType(false, file.name),
-    );
+    final opened = files[index];
+    _fileViewingRecord(opened);
     Get.toNamed(
       NamedRouter.fileReader,
-      arguments: {"fileReaderItem": fileReaderItem},
+      arguments: {
+        "fileReaderItem": FileReaderItem(
+          name: opened.name,
+          remotePath: opened.path,
+          sign: opened.sign,
+          provider: opened.provider,
+          thumb: opened.thumb,
+          fileType: FileUtils.getFileType(false, opened.name),
+        ),
+      },
     );
   }
 

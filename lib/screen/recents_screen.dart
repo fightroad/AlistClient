@@ -11,6 +11,7 @@ import 'package:alist/screen/audio_player_screen.dart';
 import 'package:alist/screen/file_reader_screen.dart';
 import 'package:alist/screen/gallery_screen.dart';
 import 'package:alist/screen/pdf_reader_screen.dart';
+import 'package:alist/screen/text_reader_screen.dart';
 import 'package:alist/screen/video_player_screen.dart';
 import 'package:alist/util/constant.dart';
 import 'package:alist/util/download/download_manager.dart';
@@ -184,10 +185,22 @@ class _RecentsScreenState extends State<RecentsScreen>
         _previewMarkdown(file);
         break;
       case FileType.txt:
+      case FileType.code:
+        Get.toNamed(
+          NamedRouter.textReader,
+          arguments: {
+            "textReaderItem": TextReaderItem(
+              name: file.name,
+              remotePath: file.path,
+              sign: file.sign,
+              provider: file.provider,
+            ),
+          },
+        );
+        break;
       case FileType.word:
       case FileType.excel:
       case FileType.ppt:
-      case FileType.code:
       case FileType.apk:
       case FileType.compress:
       default:
@@ -228,7 +241,11 @@ class _RecentsScreenState extends State<RecentsScreen>
   }
 
   void _previewMarkdown(FileViewingRecord file) async {
-    var fileLink = await FileUtils.makeFileLink(file.remotePath, file.sign);
+    var fileLink = await FileUtils.makePreviewUrl(
+      file.remotePath,
+      file.sign,
+      provider: file.provider,
+    );
     if (fileLink != null) {
       Get.toNamed(NamedRouter.web, arguments: {
         "url": fileLink,
@@ -339,7 +356,8 @@ class _RecentsScreenState extends State<RecentsScreen>
                       if (record.provider == "BaiduNetdisk") {
                         requestHeaders[HttpHeaders.userAgentHeader] =
                             "pan.baidu.com";
-                      } else if (record.provider == "AliyundriveOpen") {
+                      } else if (FileUtils.needsDownloadRateLimit(
+                          record.provider)) {
                         // 阿里云盘下载请求频率限制为 1s/次
                         limitFrequency = 1;
                       }
@@ -504,7 +522,8 @@ class _RecentsScreenState extends State<RecentsScreen>
 
     var index = files.lastIndexWhere((element) => element.path == file.path);
     if (index == -1) {
-      index = 0;
+      SmartDialog.showToast(Intl.tips_makeFileLink_failed.tr);
+      return;
     }
     var videos = files
         .map(
@@ -543,7 +562,8 @@ class _RecentsScreenState extends State<RecentsScreen>
 
     var index = files.lastIndexWhere((element) => element.path == file.path);
     if (index == -1) {
-      index = 0;
+      SmartDialog.showToast(Intl.tips_makeFileLink_failed.tr);
+      return;
     }
 
     var audios = files
@@ -576,7 +596,8 @@ class _RecentsScreenState extends State<RecentsScreen>
 
     var index = files.lastIndexWhere((element) => element.path == file.path);
     if (index == -1) {
-      index = 0;
+      SmartDialog.showToast(Intl.tips_makeFileLink_failed.tr);
+      return;
     }
     var photos = files
         .map(

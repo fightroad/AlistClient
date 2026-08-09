@@ -5,6 +5,7 @@ import 'package:alist/database/alist_database_controller.dart';
 import 'package:alist/util/download/download_manager.dart';
 import 'package:alist/util/download/download_task.dart';
 import 'package:alist/util/download/download_task_status.dart';
+import 'package:alist/util/file_utils.dart';
 import 'package:alist/util/named_router.dart';
 import 'package:alist/util/user_controller.dart';
 import 'package:alist/widget/alist_scaffold.dart';
@@ -110,9 +111,9 @@ class PdfReaderScreenController extends GetxController {
 
     final requestHeaders = <String, dynamic>{};
     var limitFrequency = 0;
-    if (pdfItem.provider == "BaiduNetdisk") {
+    if (FileUtils.isBaiduNetdisk(pdfItem.provider)) {
       requestHeaders["User-Agent"] = "pan.baidu.com";
-    } else if (pdfItem.provider == "AliyundriveOpen") {
+    } else if (FileUtils.needsDownloadRateLimit(pdfItem.provider)) {
       // 阿里云盘下载请求频率限制为 1s/次
       limitFrequency = 1;
     }

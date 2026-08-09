@@ -180,7 +180,12 @@ class GalleryController extends GetxController {
         }
       }
 
-      var url = await FileUtils.makeFileLink(file.remotePath, file.sign);
+      var url = await FileUtils.makePreviewUrl(
+        file.remotePath,
+        file.sign,
+        provider: file.provider,
+        toastShowTips: false,
+      );
       if (url == null) {
         break;
       }

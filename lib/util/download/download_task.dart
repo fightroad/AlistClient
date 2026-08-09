@@ -136,7 +136,8 @@ class DownloadTask {
           contentLengthInt > 0 &&
           ((eTag != null && eTag.isNotEmpty) ||
               (lastModified != null && lastModified.isNotEmpty));
-      this.contentLength = contentLengthInt;
+      // Keep null when unknown so UI can show indeterminate progress.
+      this.contentLength = contentLengthInt > 0 ? contentLengthInt : null;
 
       downloaded = isPartialContent ? downloaded : 0;
       LogUtil.d("statusCode=$statusCode");

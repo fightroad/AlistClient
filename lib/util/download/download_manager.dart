@@ -153,9 +153,9 @@ class DownloadManager {
       {CancelToken? cancelToken, bool ignoreDuplicates = false}) async {
     final requestHeaders = <String, dynamic>{};
     var limitFrequency = 0;
-    if (file.provider == "BaiduNetdisk") {
+    if (FileUtils.isBaiduNetdisk(file.provider)) {
       requestHeaders[HttpHeaders.userAgentHeader] = "pan.baidu.com";
-    } else if (file.provider == "AliyundriveOpen") {
+    } else if (FileUtils.needsDownloadRateLimit(file.provider)) {
       // 阿里云盘下载请求频率限制为 1s/次
       limitFrequency = 1;
     }
@@ -467,8 +467,7 @@ class DownloadManager {
     }
     _progressTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
       for (var task in _runningTasks) {
-        if (task.status == DownloadTaskStatus.downloading &&
-            task.downloaded > 0) {
+        if (task.status == DownloadTaskStatus.downloading) {
           _downloadProgressChangeStreamController.sink.add(task);
         }
       }

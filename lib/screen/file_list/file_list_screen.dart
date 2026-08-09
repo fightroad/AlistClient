@@ -23,6 +23,7 @@ import 'package:alist/screen/file_list/mkdir_dialog.dart';
 import 'package:alist/screen/file_reader_screen.dart';
 import 'package:alist/screen/gallery_screen.dart';
 import 'package:alist/screen/pdf_reader_screen.dart';
+import 'package:alist/screen/text_reader_screen.dart';
 import 'package:alist/screen/video_player_screen.dart';
 import 'package:alist/util/alist_plugin.dart';
 import 'package:alist/util/constant.dart';
@@ -502,10 +503,22 @@ class _FileListScreenState extends State<FileListScreen>
         _previewMarkdown(file);
         break;
       case FileType.txt:
+      case FileType.code:
+        Get.toNamed(
+          NamedRouter.textReader,
+          arguments: {
+            "textReaderItem": TextReaderItem(
+              name: file.name,
+              remotePath: file.path,
+              sign: file.sign,
+              provider: file.provider,
+            ),
+          },
+        );
+        break;
       case FileType.word:
       case FileType.excel:
       case FileType.ppt:
-      case FileType.code:
       case FileType.apk:
       case FileType.compress:
       default:
@@ -1043,7 +1056,11 @@ class _FileListScreenState extends State<FileListScreen>
   }
 
   void _previewMarkdown(FileItemVO file) async {
-    var fileLink = await FileUtils.makeFileLink(file.path, file.sign);
+    var fileLink = await FileUtils.makePreviewUrl(
+      file.path,
+      file.sign,
+      provider: file.provider,
+    );
     if (fileLink != null) {
       Get.toNamed(NamedRouter.web, arguments: {
         "url": fileLink,

@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 import 'package:alist/entity/file_list_resp_entity.dart';
@@ -5,6 +6,7 @@ import 'package:alist/generated/images.dart';
 import 'package:alist/l10n/intl_keys.dart' as ikeys;
 import 'package:alist/util/constant.dart';
 import 'package:alist/util/file_type.dart';
+import 'package:alist/util/proxy.dart';
 import 'package:alist/util/user_controller.dart';
 import 'package:flustars/flustars.dart';
 import 'package:flutter/cupertino.dart';
@@ -19,6 +21,17 @@ final dateFormatThatYear = DateFormat("yyyy/MM/dd HH:mm");
 final now = DateTime.now();
 
 class FileUtils {
+  /// Providers that need download URL rate limiting (e.g. Aliyun Drive).
+  static bool needsDownloadRateLimit(String? provider) {
+    if (provider == null || provider.isEmpty) return false;
+    final p = provider.toLowerCase();
+    return p.contains("aliyun") || p.contains("alipan");
+  }
+
+  static bool isBaiduNetdisk(String? provider) {
+    return provider == "BaiduNetdisk";
+  }
+
   static FileType getFileType(bool isDir, String name) {
     if (isDir) {
       return FileType.folder;
@@ -266,6 +279,29 @@ class FileUtils {
       url = "$url?sign=$sign";
     }
     return url;
+  }
+
+  /// Build a local-proxy URL so 302 redirects (Aliyun etc.) and Baidu UA work
+  /// for WebView / image loading.
+  static Future<String?> makePreviewUrl(
+    String path,
+    String? sign, {
+    String? provider,
+    bool toastShowTips = true,
+  }) async {
+    final url = await makeFileLink(path, sign, toastShowTips: toastShowTips);
+    if (url == null) {
+      return null;
+    }
+    final proxyServer = Get.find<ProxyServer>();
+    await proxyServer.start();
+    final headers = <String, String>{};
+    if (isBaiduNetdisk(provider)) {
+      headers[HttpHeaders.userAgentHeader] = "pan.baidu.com";
+    }
+    return proxyServer
+        .makeProxyUrl(url, headers: headers.isEmpty ? null : headers)
+        .toString();
   }
 
   static String _pathEncodeFull(String uri) {
