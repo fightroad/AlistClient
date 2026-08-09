@@ -260,6 +260,10 @@ class DownloadManagerAnchor extends StatelessWidget {
         onPressed: () =>
             onMenuClickCallback?.call(DownloadManagerMenuId.pauseAll),
         child: Text(Intl.downloadManagerScreen_menu_pauseAll.tr));
+    var buttonDeleteAll = MenuItemButton(
+        onPressed: () =>
+            onMenuClickCallback?.call(DownloadManagerMenuId.deleteAll),
+        child: Text(Intl.downloadManagerScreen_menu_deleteAll.tr));
     var buttonBackgroundDownload = MenuItemButton(
         onPressed: () =>
             onMenuClickCallback?.call(DownloadManagerMenuId.backgroundDownload),
@@ -275,6 +279,7 @@ class DownloadManagerAnchor extends StatelessWidget {
       ),
       buttonStartAll,
       buttonPauseAll,
+      buttonDeleteAll,
       if (Platform.isAndroid) buttonBackgroundDownload,
       buttonSetRunningQueueSize,
     ];
@@ -665,6 +670,9 @@ class DownloadManagerController extends GetxController {
       case DownloadManagerMenuId.pauseAll:
         _tryPauseAll();
         break;
+      case DownloadManagerMenuId.deleteAll:
+        _confirmDeleteAll();
+        break;
       case DownloadManagerMenuId.backgroundDownload:
         _requestPermission();
         break;
@@ -688,6 +696,45 @@ class DownloadManagerController extends GetxController {
             });
         break;
     }
+  }
+
+  Future<void> _confirmDeleteAll() async {
+    if (_downloadList.isEmpty) {
+      SmartDialog.showToast(Intl.downloadManagerScreen_tips_noRecord.tr);
+      return;
+    }
+    final confirmed = await SmartDialog.show<bool>(
+      builder: (context) {
+        return AlertDialog(
+          title: Text(Intl.downloadManagerScreen_deleteAllConfirm_title.tr),
+          content: Text(Intl.downloadManagerScreen_deleteAllConfirm_content.tr),
+          actions: [
+            TextButton(
+              onPressed: () => SmartDialog.dismiss(result: false),
+              child: Text(Intl.setMaxRunningTasksSizeDialog_btn_cancel.tr),
+            ),
+            TextButton(
+              onPressed: () => SmartDialog.dismiss(result: true),
+              style: TextButton.styleFrom(
+                foregroundColor: Get.theme.colorScheme.error,
+              ),
+              child: Text(Intl.downloadManagerScreen_menu_deleteAll.tr),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true) {
+      _deleteAll();
+    }
+  }
+
+  void _deleteAll() {
+    final items = _downloadList.toList();
+    for (final item in items) {
+      delete(item);
+    }
+    SmartDialog.showToast(Intl.downloadManagerScreen_tips_deletedAll.tr);
   }
 
   void _tryStartAll() {
@@ -976,6 +1023,7 @@ class DownloadItem {
 enum DownloadManagerMenuId {
   startAll,
   pauseAll,
+  deleteAll,
   backgroundDownload,
   setRunningQueueSize
 }

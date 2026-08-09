@@ -211,8 +211,12 @@ class Intl {
   static const String downloadManagerScreen_tips_backgroundDownloadSupported = "downloadManagerScreen_tips_backgroundDownloadSupported";
   static const String downloadManagerScreen_menu_startAll = "downloadManagerScreen_menu_startAll";
   static const String downloadManagerScreen_menu_pauseAll = "downloadManagerScreen_menu_pauseAll";
+  static const String downloadManagerScreen_menu_deleteAll = "downloadManagerScreen_menu_deleteAll";
+  static const String downloadManagerScreen_deleteAllConfirm_title = "downloadManagerScreen_deleteAllConfirm_title";
+  static const String downloadManagerScreen_deleteAllConfirm_content = "downloadManagerScreen_deleteAllConfirm_content";
   static const String downloadManagerScreen_menu_allowBackgroundDownloads = "downloadManagerScreen_menu_allowBackgroundDownloads";
   static const String downloadManagerScreen_menu_setRunningQueueSize = "downloadManagerScreen_menu_setRunningQueueSize";
+  static const String downloadManagerScreen_tips_deletedAll = "downloadManagerScreen_tips_deletedAll";
   static const String redownloadConfirmDialog_title = "redownloadConfirmDialog_title";
   static const String redownloadConfirmDialog_message = "redownloadConfirmDialog_message";
   static const String redownloadConfirmDialog_btn_ok = "redownloadConfirmDialog_btn_ok";
