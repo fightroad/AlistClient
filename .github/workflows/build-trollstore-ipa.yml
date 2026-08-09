@@ -1,0 +1,165 @@
+name: Build TrollStore IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      flutter_version:
+        description: Flutter version
+        required: false
+        default: "3.24.5"
+      create_release:
+        description: Create GitHub Release (true/false)
+        required: false
+        default: "false"
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-ipa:
+    name: Build unsigned IPA for TrollStore
+    runs-on: macos-14
+    timeout-minutes: 90
+
+    env:
+      # Prefer official mirrors on GitHub-hosted runners (lock may still pin cn URLs)
+      PUB_HOSTED_URL: https://pub.dev
+      FLUTTER_STORAGE_BASE_URL: https://storage.googleapis.com
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve Flutter version
+        id: flutter
+        run: |
+          if [ -n "${{ github.event.inputs.flutter_version }}" ]; then
+            echo "version=${{ github.event.inputs.flutter_version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=3.24.5" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ steps.flutter.outputs.version }}
+          channel: stable
+          cache: true
+
+      - name: Read app version
+        id: version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | tr -d ' ')
+          NAME=$(echo "$VERSION" | cut -d'+' -f1)
+          BUILD=$(echo "$VERSION" | cut -d'+' -f2)
+          SAFE="${NAME}-${BUILD}"
+          echo "full=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+          echo "safe=$SAFE" >> "$GITHUB_OUTPUT"
+          echo "App version: $VERSION"
+
+      - name: Install dependencies
+        run: |
+          flutter --version
+          flutter pub get
+          flutter precache --ios
+
+      - name: CocoaPods install
+        run: |
+          cd ios
+          pod install --repo-update
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Install ldid
+        run: brew install ldid
+
+      - name: Package TrollStore IPA
+        id: package
+        run: |
+          set -euo pipefail
+
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          if [ ! -d "$APP_PATH" ]; then
+            echo "Runner.app not found at $APP_PATH"
+            find build/ios -name "*.app" -type d || true
+            exit 1
+          fi
+
+          ENTITLEMENTS="ios/Runner/TrollStore.entitlements"
+          if [ ! -f "$ENTITLEMENTS" ]; then
+            echo "Missing entitlements: $ENTITLEMENTS"
+            exit 1
+          fi
+
+          MAIN_BIN="$APP_PATH/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP_PATH/Info.plist")"
+          if [ ! -f "$MAIN_BIN" ]; then
+            echo "Main binary not found: $MAIN_BIN"
+            exit 1
+          fi
+
+          echo "Fake-signing nested Mach-O binaries..."
+          while IFS= read -r -d '' file; do
+            if [ "$file" = "$MAIN_BIN" ]; then
+              continue
+            fi
+            if file "$file" | grep -q 'Mach-O'; then
+              ldid -S "$file" || true
+            fi
+          done < <(find "$APP_PATH" -type f -print0)
+
+          echo "Fake-signing main binary with entitlements..."
+          ldid "-S$ENTITLEMENTS" "$MAIN_BIN"
+          echo "---- entitlements ----"
+          ldid -e "$MAIN_BIN" || true
+
+          IPA_NAME="ALClient-${{ steps.version.outputs.safe }}-trollstore.ipa"
+          rm -rf Payload "$IPA_NAME"
+          mkdir -p Payload
+          cp -R "$APP_PATH" "Payload/Runner.app"
+          zip -qry "$IPA_NAME" Payload
+          rm -rf Payload
+
+          # Basic IPA sanity checks
+          unzip -l "$IPA_NAME" | grep -q 'Payload/Runner.app/'
+          test -f Payload/Runner.app/Info.plist || unzip -qo "$IPA_NAME" "Payload/Runner.app/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' Payload/Runner.app/Info.plist
+          rm -rf Payload
+
+          echo "ipa=$IPA_NAME" >> "$GITHUB_OUTPUT"
+          ls -lh "$IPA_NAME"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ALClient-TrollStore-IPA
+          path: ${{ steps.package.outputs.ipa }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('trollstore-v{0}-{1}', steps.version.outputs.name, github.run_number) }}
+          name: ALClient ${{ steps.version.outputs.name }} (TrollStore)
+          body: |
+            ## TrollStore / Sideload IPA
+            - App: ALClient
+            - Version: `${{ steps.version.outputs.full }}`
+            - Bundle ID: `com.github.alist.client`
+            - Signing: ldid fake-sign (no Apple certificate)
+
+            ### Install
+            - **TrollStore**: open the `.ipa` → Install
+            - **Sideloadly / AltStore / SideStore**: import IPA and resign with your Apple ID
+          files: ${{ steps.package.outputs.ipa }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          make_latest: true
