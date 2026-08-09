@@ -23,6 +23,12 @@ class UserController extends GetxController {
     SpUtil.putString(AlistConstant.basePath, user.basePath ?? "");
     SpUtil.putBool(AlistConstant.guest, user.guest);
 
+    final signedIn =
+        user.baseUrl.isNotEmpty &&
+        (user.guest || (user.token != null && user.token!.isNotEmpty));
+    if (!signedIn) {
+      return;
+    }
     if (fromCache || user.basePath == null || user.basePath!.isEmpty) {
       requestBasePath(user);
     }
@@ -30,7 +36,7 @@ class UserController extends GetxController {
   }
 
   void loadSettings() {
-    if (searchIndex.value != "") {
+    if (searchIndex.value != "" || user.value.baseUrl.isEmpty) {
       return;
     }
     DioUtils.instance.requestNetwork<PublicSettingsResp>(

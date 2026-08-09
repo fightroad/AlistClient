@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:alist/database/alist_database_controller.dart';
+import 'package:alist/generated/images.dart';
 import 'package:alist/l10n/intl_keys.dart';
 import 'package:alist/util/file_utils.dart';
 import 'package:alist/util/lock_caching_audio_source.dart';
@@ -12,10 +13,12 @@ import 'package:alist/widget/slider.dart';
 import 'package:dio/dio.dart';
 import 'package:flustars/flustars.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:scroll_to_index/scroll_to_index.dart';
 import 'dart:io' as io;
 
@@ -355,7 +358,7 @@ class AudioPlayerScreenController extends GetxController {
     final mediaItem = MediaItem(
       id: audio.remotePath,
       title: audio.name,
-      artUri: Uri.parse("https://alistc.techyifu.com/ic_music_head.png"),
+      artUri: await _localMusicArtUri(),
     );
 
     if (audio.localPath == null || audio.localPath!.isEmpty) {
@@ -390,6 +393,16 @@ class AudioPlayerScreenController extends GetxController {
         );
       }
     }
+  }
+
+  Future<Uri> _localMusicArtUri() async {
+    final dir = await getTemporaryDirectory();
+    final file = io.File('${dir.path}/ic_music_head.png');
+    if (!await file.exists()) {
+      final data = await rootBundle.load(Images.fileTypeAudio);
+      await file.writeAsBytes(data.buffer.asUint8List(), flush: true);
+    }
+    return file.uri;
   }
 
   void _playNext() {

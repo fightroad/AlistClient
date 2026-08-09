@@ -37,7 +37,6 @@ dependencies:
   # http request
   dio: ^5.1.1
   # key value
-  shared_preferences: ^2.1.0
   flustars: ^2.0.1
   # https://github.com/Sky24n/sp_util
   # sp_util分拆成单独的库，可以直接引用
