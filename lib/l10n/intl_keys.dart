@@ -20,6 +20,7 @@ class Intl {
   static const String loginScreen_tips_usernameOrPasswordEmpty = "loginScreen_tips_usernameOrPasswordEmpty";
   static const String loginScreen_checkbox_ignoreSSLError = "loginScreen_checkbox_ignoreSSLError";
   static const String loginScreen_tips_guestAccountDisabled = "loginScreen_tips_guestAccountDisabled";
+  static const String loginScreen_tips_loginFailed = "loginScreen_tips_loginFailed";
   static const String settingsScreen_item_account = "settingsScreen_item_account";
   static const String settingsScreen_item_login = "settingsScreen_item_login";
   static const String settingsScreen_item_donate = "settingsScreen_item_donate";

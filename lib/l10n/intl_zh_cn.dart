@@ -20,6 +20,7 @@ const translationsZhCN = {
   "loginScreen_tips_usernameOrPasswordEmpty": "用户名/密码为空",
   "loginScreen_checkbox_ignoreSSLError": "忽略SSL证书错误",
   "loginScreen_tips_guestAccountDisabled": "游客账户已禁用",
+  "loginScreen_tips_loginFailed": "登录失败，请重试",
   "settingsScreen_item_account": "账户管理",
   "settingsScreen_item_donate": "赞赏",
   "settingsScreen_item_about": "关于我们",

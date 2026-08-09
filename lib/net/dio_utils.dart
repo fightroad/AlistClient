@@ -67,6 +67,13 @@ class DioUtils {
     );
     _dio = Dio(options);
 
+    // streamDio is reused across logins; clear before re-adding interceptors
+    _streamDio.interceptors.clear();
+    _streamDio.options.baseUrl = _baseUrl;
+    _streamDio.options.connectTimeout = _connectTimeout;
+    _streamDio.options.receiveTimeout = _receiveTimeout;
+    _streamDio.options.sendTimeout = _sendTimeout;
+
     ignoreSSLError ??= _ignoreSSLError;
     if (ignoreSSLError == true) {
       _dioIgnoreSSLError(dio);

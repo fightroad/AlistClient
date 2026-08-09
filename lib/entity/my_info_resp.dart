@@ -4,9 +4,9 @@ import 'dart:convert';
 
 @JsonSerializable()
 class MyInfoResp {
-	late int id;
-	late String username;
-	late String password;
+	int id = 0;
+	String username = "";
+	String password = "";
 	@JSONField(name: "base_path")
 	String basePath = "";
 	int role = 0;

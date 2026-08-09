@@ -4,18 +4,18 @@ import 'dart:convert';
 
 @JsonSerializable()
 class FileInfoRespEntity {
-	late String name;
-	late int size;
+	String name = "";
+	int size = 0;
 	@JSONField(name: "is_dir")
-	late bool isDir;
-	late String modified;
-	late String sign;
-	late String thumb;
-	late int type;
+	bool isDir = false;
+	String modified = "";
+	String sign = "";
+	String thumb = "";
+	int type = 0;
 	@JSONField(name: "raw_url")
-	late String rawUrl;
-	late String readme;
-	late String provider;
+	String rawUrl = "";
+	String readme = "";
+	String provider = "";
 	dynamic related;
 
 	FileInfoRespEntity();

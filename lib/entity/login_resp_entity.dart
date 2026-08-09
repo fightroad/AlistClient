@@ -4,7 +4,7 @@ import 'dart:convert';
 
 @JsonSerializable()
 class LoginRespEntity {
-	late String token;
+	String token = "";
 
 	LoginRespEntity();
 

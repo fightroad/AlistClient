@@ -13,7 +13,6 @@ import 'package:alist/util/focus_node_utils.dart';
 import 'package:alist/util/global.dart';
 import 'package:alist/util/keyboard_utils.dart';
 import 'package:alist/util/named_router.dart';
-import 'package:alist/util/string_utils.dart';
 import 'package:alist/util/user_controller.dart';
 import 'package:alist/widget/alist_scaffold.dart';
 import 'package:dio/dio.dart';
@@ -358,12 +357,17 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
       Options(followRedirects: false, headers: {AlistConstant.noAuth: 1}),
       cancelToken: _cancelToken,
       onSuccess: (data) {
+        final token = data?.token;
+        if (token == null || token.isEmpty) {
+          onFailure(-1, Intl.loginScreen_tips_loginFailed.tr, address);
+          return;
+        }
         var user = User(
           baseUrl: baseUrl,
           serverUrl: address,
           username: username,
           password: password,
-          token: data!.token,
+          token: token,
           guest: false,
         );
         userController.login(user);
@@ -373,6 +377,42 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
       },
       onError: (code, message) => onFailure(code, message, address),
     );
+  }
+
+  /// Redirect Location is usually the full API URL; strip back to server root.
+  String? _serverUrlFromRedirect(
+    String location,
+    String apiSuffix, {
+    required String originalAddress,
+  }) {
+    var url = location.trim();
+    if (url.isEmpty) {
+      return null;
+    }
+
+    // Relative Location → resolve against the URL the user entered
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      final base = Uri.tryParse(originalAddress);
+      if (base == null || !base.hasScheme) {
+        return null;
+      }
+      url = base.resolve(url).toString();
+    }
+
+    final index = url.toLowerCase().lastIndexOf(apiSuffix.toLowerCase());
+    if (index >= 0) {
+      url = url.substring(0, index);
+    }
+    if (url.isEmpty) {
+      return null;
+    }
+    if (!url.endsWith("/")) {
+      url = "$url/";
+    }
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      return null;
+    }
+    return url;
   }
 
   @transaction
@@ -448,9 +488,18 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
           SmartDialog.dismiss();
         }, onError: (code, message) {
           if (code == 301) {
-            var baseUrl = message.substringBeforeLast("api/me")!;
-            addressController.text = baseUrl;
-            _enterVisitorMode(baseUrl, useDemoServer: useDemoServer);
+            final redirected = _serverUrlFromRedirect(
+              message,
+              "api/me",
+              originalAddress: address,
+            );
+            if (redirected == null) {
+              SmartDialog.showToast(message);
+              SmartDialog.dismiss();
+              return;
+            }
+            addressController.text = redirected;
+            _enterVisitorMode(redirected, useDemoServer: useDemoServer);
             return;
           }
           SmartDialog.showToast(message);
@@ -530,9 +579,18 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
         }
 
         if (code == 301) {
-          // redirect
-          addressController.text = message;
-          _onLoginButtonClick(context);
+          // redirect: Location is full API URL, not the server root
+          final redirected = _serverUrlFromRedirect(
+            message,
+            "api/auth/login",
+            originalAddress: address,
+          );
+          if (redirected == null) {
+            SmartDialog.showToast(Intl.loginScreen_tips_serverUrlError.tr);
+            return;
+          }
+          addressController.text = redirected;
+          _onLoginButtonClick(context, address: redirected);
           return;
         }
         if (code == 402) {

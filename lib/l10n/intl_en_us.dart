@@ -20,6 +20,7 @@ const translationsEnUS = {
   "loginScreen_tips_usernameOrPasswordEmpty": "Username or password is empty",
   "loginScreen_checkbox_ignoreSSLError": "Ignore SSL certificate error",
   "loginScreen_tips_guestAccountDisabled": "Guest account is disabled",
+  "loginScreen_tips_loginFailed": "Sign in failed, please try again",
   "settingsScreen_item_account": "Account",
   "settingsScreen_item_login": "Sign in",
   "settingsScreen_item_donate": "Donate",

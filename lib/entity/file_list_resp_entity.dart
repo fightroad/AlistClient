@@ -5,10 +5,10 @@ import 'dart:convert';
 @JsonSerializable()
 class FileListRespEntity {
 	List<FileListRespContent>? content;
-	late int total;
-	late String readme;
-	late bool write;
-	late String provider;
+	int total = 0;
+	String readme = "";
+	bool write = false;
+	String provider = "";
 
 	FileListRespEntity();
 
@@ -24,14 +24,14 @@ class FileListRespEntity {
 
 @JsonSerializable()
 class FileListRespContent {
-	late String name;
+	String name = "";
 	int? size;
 	@JSONField(name: "is_dir")
-	late bool isDir;
-	late String modified;
-	late String sign;
-	late String thumb;
-	late int type;
+	bool isDir = false;
+	String modified = "";
+	String sign = "";
+	String thumb = "";
+	int type = 0;
 	String? readme;
 
 	FileListRespContent();
