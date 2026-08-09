@@ -1,6 +1,7 @@
 import 'package:alist/generated/images.dart';
 import 'package:alist/l10n/intl_keys.dart';
 import 'package:alist/util/named_router.dart';
+import 'package:alist/util/user_controller.dart';
 import 'package:alist/util/widget_utils.dart';
 import 'package:alist/widget/alist_scaffold.dart';
 import 'package:flutter/material.dart';
@@ -26,23 +27,27 @@ class _SettingsContainer extends StatefulWidget {
 
 class _SettingsContainerState extends State<_SettingsContainer>
     with AutomaticKeepAliveClientMixin {
+  final UserController _userController = Get.find();
+
   @override
   Widget build(BuildContext context) {
     super.build(context);
     bool isDarkMode = WidgetUtils.isDarkMode(context);
-    List<SettingsMenu> settingsMenus = _buildSettingsMenuItems();
 
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      itemBuilder: (child, index) {
-        var settingsMenu = settingsMenus[index];
-        return _buildListItem(settingsMenu, context, isDarkMode);
-      },
-      separatorBuilder: (child, index) {
-        return const Divider();
-      },
-      itemCount: settingsMenus.length,
-    );
+    return Obx(() {
+      final settingsMenus = _buildSettingsMenuItems();
+      return ListView.separated(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        itemBuilder: (child, index) {
+          var settingsMenu = settingsMenus[index];
+          return _buildListItem(settingsMenu, context, isDarkMode);
+        },
+        separatorBuilder: (child, index) {
+          return const Divider();
+        },
+        itemCount: settingsMenus.length,
+      );
+    });
   }
 
   ListTile _buildListItem(
@@ -54,7 +59,9 @@ class _SettingsContainerState extends State<_SettingsContainer>
       horizontalTitleGap: 2,
       tileColor: Theme.of(context).colorScheme.background.withAlpha(125),
       minVerticalPadding: 15,
-      leading: Image.asset(settingsMenu.icon),
+      leading: settingsMenu.iconData != null
+          ? Icon(settingsMenu.iconData)
+          : Image.asset(settingsMenu.icon!),
       title: Text(settingsMenu.name),
       trailing: Image.asset(
         Images.iconArrowRight,
@@ -64,7 +71,7 @@ class _SettingsContainerState extends State<_SettingsContainer>
   }
 
   List<SettingsMenu> _buildSettingsMenuItems() {
-    return [
+    final menus = <SettingsMenu>[
       SettingsMenu(
         name: Intl.settingsScreen_item_account.tr,
         icon: Images.settingsScreenAccount,
@@ -83,6 +90,17 @@ class _SettingsContainerState extends State<_SettingsContainer>
           icon: Images.settingsScreenPlayer,
           route: NamedRouter.playerSettings),
     ];
+    if (!_userController.user.value.guest) {
+      menus.insert(
+        1,
+        SettingsMenu(
+          name: Intl.settingsScreen_item_shareManager.tr,
+          iconData: Icons.share_outlined,
+          route: NamedRouter.shareManager,
+        ),
+      );
+    }
+    return menus;
   }
 
   @override
@@ -91,12 +109,14 @@ class _SettingsContainerState extends State<_SettingsContainer>
 
 class SettingsMenu {
   final String name;
-  final String icon;
+  final String? icon;
+  final IconData? iconData;
   final String route;
 
   SettingsMenu({
     required this.name,
-    required this.icon,
+    this.icon,
+    this.iconData,
     required this.route,
-  });
+  }) : assert(icon != null || iconData != null);
 }

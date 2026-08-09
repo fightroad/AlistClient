@@ -11,6 +11,7 @@ import 'package:alist/screen/login_screen.dart';
 import 'package:alist/screen/pdf_reader_screen.dart';
 import 'package:alist/screen/player_settings_screen.dart';
 import 'package:alist/screen/settings_screen.dart';
+import 'package:alist/screen/share_manager_screen.dart';
 import 'package:alist/screen/splash_screen.dart';
 import 'package:alist/screen/uploading_files_screen.dart';
 import 'package:alist/screen/video_player_screen.dart';
@@ -41,6 +42,7 @@ class AlistRouter {
     GetPage(name: NamedRouter.downloadManager, page: () => DownloadManagerScreen()),
     GetPage(name: NamedRouter.fileSearch, page: () => FileSearchScreen()),
     GetPage(name: NamedRouter.cacheManager, page: () => const CacheManagerScreen()),
+    GetPage(name: NamedRouter.shareManager, page: () => const ShareManagerScreen()),
     GetPage(name: NamedRouter.playerSettings, page: () => const PlayerSettingsScreen()),
   ];
 }

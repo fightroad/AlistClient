@@ -47,6 +47,9 @@ class NamedRouter {
   // cache manager
   static const cacheManager = "/cacheManager";
 
+  // share manager
+  static const shareManager = "/shareManager";
+
   // player settings
   static const playerSettings = "/playerSettings";
 }

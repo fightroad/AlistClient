@@ -43,6 +43,7 @@ import 'package:alist/widget/config_file_name_max_lines_dialog.dart';
 import 'package:alist/widget/file_details_dialog.dart';
 import 'package:alist/widget/file_list_item_view.dart';
 import 'package:alist/widget/overflow_text.dart';
+import 'package:alist/widget/share_dialog.dart';
 import 'package:dio/dio.dart' as dio;
 import 'package:floor/floor.dart';
 import 'package:flustars/flustars.dart';
@@ -709,6 +710,15 @@ class _FileListScreenState extends State<FileListScreen>
                         _copyFileLink(file);
                       },
                     ),
+                  if (!_userController.user.value.guest)
+                    ListTile(
+                      leading: const Icon(Icons.share_outlined),
+                      title: Text(Intl.fileList_menu_share.tr),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _createShare(file);
+                      },
+                    ),
                   if (!file.isDir)
                     ListTile(
                       leading: const Icon(Icons.download_rounded),
@@ -1001,6 +1011,10 @@ class _FileListScreenState extends State<FileListScreen>
 
   void _copyFileLink(FileItemVO file) async {
     FileUtils.copyFileLink(file.path, file.sign);
+  }
+
+  void _createShare(FileItemVO file) {
+    createShareAndShowResult([file.path]);
   }
 
   void _goVideoPlayerScreen(BuildContext context, FileItemVO file,

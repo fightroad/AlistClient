@@ -16,6 +16,7 @@ import 'package:alist/entity/mkdir_req.dart';
 import 'package:alist/entity/my_info_resp.dart';
 import 'package:alist/entity/player_resolve_info_entity.dart';
 import 'package:alist/entity/public_settings_resp.dart';
+import 'package:alist/entity/share_entity.dart';
 
 JsonConvert jsonConvert = JsonConvert();
 
@@ -204,6 +205,14 @@ class JsonConvert {
       return data.map<PublicSettingsResp>((Map<String, dynamic> e) =>
           PublicSettingsResp.fromJson(e)).toList() as M;
     }
+    if (<ShareEntity>[] is M) {
+      return data.map<ShareEntity>((Map<String, dynamic> e) =>
+          ShareEntity.fromJson(e)).toList() as M;
+    }
+    if (<ShareListResp>[] is M) {
+      return data.map<ShareListResp>((Map<String, dynamic> e) =>
+          ShareListResp.fromJson(e)).toList() as M;
+    }
 
     debugPrint("$M not found");
 
@@ -239,6 +248,8 @@ class JsonConvertClassCollection {
     (MyInfoResp).toString(): MyInfoResp.fromJson,
     (ExternalPlayerEntity).toString(): ExternalPlayerEntity.fromJson,
     (PublicSettingsResp).toString(): PublicSettingsResp.fromJson,
+    (ShareEntity).toString(): ShareEntity.fromJson,
+    (ShareListResp).toString(): ShareListResp.fromJson,
   };
 
   bool containsKey(String type) {
