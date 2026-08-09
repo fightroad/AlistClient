@@ -56,10 +56,6 @@ class _SplashScreenState extends State<SplashScreen> {
     }
     Locale? currentLocal = Get.locale;
     Log.d("local = $currentLocal");
-    if (currentLocal?.toString().startsWith("zh_") == true) {
-      Global.configServerHost = "alistc.techyifu.com";
-      Global.demoServerBaseUrl = "https://www.techyifu.com/alist/";
-    }
     makeSureLoginUserInfo(token);
     if ((token == null || token.isEmpty) &&
         SpUtil.getBool(AlistConstant.guest) != true) {
@@ -79,7 +75,6 @@ class _SplashScreenState extends State<SplashScreen> {
     String? token = SpUtil.getString(AlistConstant.token, defValue: null);
     String? basePath = SpUtil.getString(AlistConstant.basePath, defValue: null);
     bool guest = SpUtil.getBool(AlistConstant.guest) ?? false;
-    bool useDemoServer = SpUtil.getBool(AlistConstant.useDemoServer) ?? false;
     int fileNameMaxLines =
         SpUtil.getInt(AlistConstant.fileNameMaxLines, defValue: 1) ?? 1;
     Global.fileNameMaxLines.value = fileNameMaxLines;
@@ -92,7 +87,6 @@ class _SplashScreenState extends State<SplashScreen> {
         guest: guest,
         token: token,
         basePath: basePath,
-        useDemoServer: useDemoServer,
       ),
       fromCache: true,
     );
@@ -149,10 +143,7 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     var ignoreSSLError = SpUtil.getBool(AlistConstant.ignoreSSLError) ?? false;
-    var baseUrl = SpUtil.getString(AlistConstant.baseUrl);
-    if (baseUrl == null || baseUrl.isEmpty) {
-      baseUrl = Global.demoServerBaseUrl;
-    }
+    var baseUrl = SpUtil.getString(AlistConstant.baseUrl) ?? "";
     configDio(
       baseUrl: baseUrl,
       interceptors: interceptors,

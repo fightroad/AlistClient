@@ -433,9 +433,6 @@ class _BottomNavigationTile extends StatelessWidget {
     final double unselectedIconDiff =
         math.max(unselectedIconSize - selectedIconSize, 0);
 
-    // The effective tool tip message to be shown on the BottomNavigationBarItem.
-    final String? effectiveTooltip = item.tooltip == '' ? null : item.tooltip;
-
     // Defines the padding for the animating icons + labels.
     //
     // The animations go from "Unselected":
@@ -499,6 +496,11 @@ class _BottomNavigationTile extends StatelessWidget {
       onLongPress: onLongPress,
       mouseCursor: mouseCursor,
       enableFeedback: enableFeedback,
+      splashFactory: NoSplash.splashFactory,
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      hoverColor: Colors.transparent,
+      focusColor: Colors.transparent,
       child: Padding(
         padding: EdgeInsets.only(top: topPadding, bottom: bottomPadding),
         child: _Tile(
@@ -524,16 +526,6 @@ class _BottomNavigationTile extends StatelessWidget {
         ),
       ),
     );
-
-    if (effectiveTooltip != null) {
-      result = Tooltip(
-        message: effectiveTooltip,
-        preferBelow: false,
-        verticalOffset: selectedIconSize + selectedFontSize,
-        excludeFromSemantics: true,
-        child: result,
-      );
-    }
 
     result = Semantics(
       selected: selected,

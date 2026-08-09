@@ -14,7 +14,6 @@ import 'package:alist/screen/video_player_screen.dart';
 import 'package:alist/util/file_password_helper.dart';
 import 'package:alist/util/file_type.dart';
 import 'package:alist/util/file_utils.dart';
-import 'package:alist/util/markdown_utils.dart';
 import 'package:alist/util/named_router.dart';
 import 'package:alist/util/nature_sort.dart';
 import 'package:alist/util/string_utils.dart';
@@ -459,7 +458,7 @@ class FileSearchController extends GetxController {
     var fileLink = await FileUtils.makeFileLink(path, file.sign);
     if (fileLink != null) {
       Get.toNamed(NamedRouter.web, arguments: {
-        "url": MarkdownUtil.makePreviewUrl(fileLink),
+        "url": fileLink,
         "title": file.name
       });
     }

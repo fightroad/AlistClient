@@ -17,7 +17,6 @@ import 'package:alist/util/download/download_manager.dart';
 import 'package:alist/util/file_password_helper.dart';
 import 'package:alist/util/file_type.dart';
 import 'package:alist/util/file_utils.dart';
-import 'package:alist/util/markdown_utils.dart';
 import 'package:alist/util/named_router.dart';
 import 'package:alist/util/nature_sort.dart';
 import 'package:alist/util/string_utils.dart';
@@ -232,7 +231,7 @@ class _RecentsScreenState extends State<RecentsScreen>
     var fileLink = await FileUtils.makeFileLink(file.remotePath, file.sign);
     if (fileLink != null) {
       Get.toNamed(NamedRouter.web, arguments: {
-        "url": MarkdownUtil.makePreviewUrl(fileLink),
+        "url": fileLink,
         "title": file.name
       });
     }

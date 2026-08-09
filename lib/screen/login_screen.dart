@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:alist/database/alist_database_controller.dart';
 import 'package:alist/database/table/server.dart';
 import 'package:alist/entity/login_resp_entity.dart';
@@ -10,7 +8,6 @@ import 'package:alist/net/dio_utils.dart';
 import 'package:alist/router.dart';
 import 'package:alist/util/constant.dart';
 import 'package:alist/util/focus_node_utils.dart';
-import 'package:alist/util/global.dart';
 import 'package:alist/util/keyboard_utils.dart';
 import 'package:alist/util/named_router.dart';
 import 'package:alist/util/user_controller.dart';
@@ -18,7 +15,6 @@ import 'package:alist/widget/alist_scaffold.dart';
 import 'package:dio/dio.dart';
 import 'package:floor/floor.dart';
 import 'package:flustars/flustars.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -175,7 +171,7 @@ class LoginScreenContainer extends StatelessWidget {
             onPressed: () {
               var address = loginScreenController.addressController.text.trim();
               if (address.isEmpty) {
-                loginScreenController._tryEntryDefaultServer(context);
+                SmartDialog.showToast(Intl.loginScreen_tips_serverUrlError.tr);
               } else {
                 loginScreenController._enterVisitorMode(address);
               }
@@ -260,12 +256,8 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
     passwordController.text = userController
         .user()
         .password ?? "";
-    bool isAgreePrivacyPolicy =
-        SpUtil.getBool(AlistConstant.isAgreePrivacyPolicy) ?? false;
-    if (!isAgreePrivacyPolicy) {
-      Future.delayed(const Duration(microseconds: 200))
-          .then((value) => _showAgreementDialog());
-    }
+    // Request network permission on first launch (iOS)
+    _testNetwork();
     WidgetsBinding.instance.addObserver(this);
     addressFocusNode.addListener(() {
       addressTextFieldIsFocused.value = addressFocusNode.hasFocus;
@@ -448,8 +440,7 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
     return true;
   }
 
-  _enterVisitorMode(String address,
-      {bool useDemoServer = false, bool ignoreDavCheck = false}) {
+  _enterVisitorMode(String address, {bool ignoreDavCheck = false}) {
     if (!address.endsWith("/")) {
       address = "$address/";
     }
@@ -482,7 +473,6 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
               address,
               data?.username,
               data?.basePath,
-              useDemoServer: useDemoServer,
             );
           }
           SmartDialog.dismiss();
@@ -499,7 +489,7 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
               return;
             }
             addressController.text = redirected;
-            _enterVisitorMode(redirected, useDemoServer: useDemoServer);
+            _enterVisitorMode(redirected);
             return;
           }
           SmartDialog.showToast(message);
@@ -508,8 +498,7 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
   }
 
   void _doAfterEnterVisitorMode(String baseUrl, String address,
-      String? username, String? basePath,
-      {bool useDemoServer = false}) {
+      String? username, String? basePath) {
     SpUtil.putBool(AlistConstant.ignoreSSLError, ignoreSSLError.value);
     var user = User(
       baseUrl: baseUrl,
@@ -519,47 +508,10 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
       token: null,
       guest: true,
       basePath: basePath,
-      useDemoServer: useDemoServer,
     );
     userController.login(user);
-    if (!useDemoServer) {
-      _insertUser2Database(user);
-    }
+    _insertUser2Database(user);
     _goHomeScreen();
-  }
-
-  void _tryEntryDefaultServer(BuildContext context) {
-    SmartDialog.show(builder: (_) {
-      return AlertDialog(
-        title: Text(Intl.guestModeDialog_title.tr),
-        content: Text(Intl.guestModeDialog_content.tr),
-        actions: [
-          TextButton(
-            onPressed: () {
-              SmartDialog.dismiss();
-            },
-            child: Text(
-              Intl.guestModeDialog_btn_cancel.tr,
-              style: TextStyle(color: Theme
-                  .of(context)
-                  .colorScheme
-                  .secondary),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              SmartDialog.dismiss();
-              Future.delayed(Duration.zero).then(
-                    (value) =>
-                    _enterVisitorMode(Global.demoServerBaseUrl,
-                        useDemoServer: true),
-              );
-            },
-            child: Text(Intl.guestModeDialog_btn_ok.tr),
-          ),
-        ],
-      );
-    });
   }
 
   _onLoginButtonClick(BuildContext context,
@@ -627,79 +579,6 @@ class LoginScreenController extends GetxController with WidgetsBindingObserver {
   void _testNetwork() async {
     await Future.delayed(const Duration(seconds: 1));
     DioUtils.instance.requestNetwork(Method.get, "/").catchError((e) {});
-  }
-
-  _showAgreementDialog() {
-    SmartDialog.show(
-      clickMaskDismiss: false,
-      backDismiss: false,
-      builder: (context) {
-        return AlertDialog(
-          title: Text(Intl.privacyDialog_title.tr),
-          content: RichText(
-              text: TextSpan(children: [
-                TextSpan(
-                    text: Intl.privacyDialog_content_part1.tr,
-                    style: Theme
-                        .of(context)
-                        .textTheme
-                        .bodyMedium),
-                TextSpan(
-                    text: Intl.privacyDialog_link.tr,
-                    style: Theme
-                        .of(context)
-                        .textTheme
-                        .bodyMedium
-                        ?.copyWith(color: Theme
-                        .of(context)
-                        .colorScheme
-                        .primary),
-                    recognizer: TapGestureRecognizer()
-                      ..onTap = () async {
-                        SmartDialog.dismiss();
-                        await _goPrivacyPolicyPage();
-                        _showAgreementDialog();
-                      }),
-                TextSpan(
-                    text: Intl.privacyDialog_content_part2.tr,
-                    style: Theme
-                        .of(context)
-                        .textTheme
-                        .bodyMedium),
-              ])),
-          actions: [
-            TextButton(
-                onPressed: () {
-                  SmartDialog.dismiss();
-                  exit(0);
-                },
-                child: Text(Intl.privacyDialog_btn_cancel.tr)),
-            TextButton(
-              onPressed: () {
-                SmartDialog.dismiss();
-                _testNetwork();
-                SpUtil.putBool(AlistConstant.isAgreePrivacyPolicy, true);
-              },
-              child: Text(Intl.privacyDialog_btn_ok.tr),
-            )
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _goPrivacyPolicyPage() async {
-    String local = "en_US";
-    if (Get.locale?.toString().startsWith("zh_") == true) {
-      local = "zh";
-    }
-
-    final url =
-        "https://${Global.configServerHost}/alist_h5/privacyPolicy?lang=$local";
-    await Get.toNamed(
-      NamedRouter.web,
-      arguments: {"url": url},
-    );
   }
 
   void _showType2FACodeDialog(BuildContext context) {

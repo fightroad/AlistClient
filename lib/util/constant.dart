@@ -20,10 +20,7 @@ class AlistConstant {
   static const String password = 'password';
   static const String token = 'token';
   static const String guest = 'guest';
-  static const String useDemoServer = 'useDemoServer';
-  static const String isAgreePrivacyPolicy = 'isAgreePrivacyPolicy';
   static const String ignoreSSLError = "ignoreSSLError";
-  static const String ignoreAppVersion = "ignoreAppVersion";
   static const String isFirstTimeDownload = "isFirstTimeDownload";
   static const String isFirstTimeSaveToLocal = "isFirstTimeSaveToLocal";
   static const String maxRunningTaskCount = "maxRunningTaskCount";

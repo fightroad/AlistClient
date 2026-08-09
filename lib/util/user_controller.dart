@@ -3,7 +3,6 @@ import 'package:alist/entity/public_settings_resp.dart';
 import 'package:alist/net/dio_utils.dart';
 import 'package:dio/dio.dart';
 import 'package:flustars/flustars.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
 import 'constant.dart';
@@ -23,7 +22,6 @@ class UserController extends GetxController {
     SpUtil.putString(AlistConstant.token, user.token ?? "");
     SpUtil.putString(AlistConstant.basePath, user.basePath ?? "");
     SpUtil.putBool(AlistConstant.guest, user.guest);
-    SpUtil.putBool(AlistConstant.useDemoServer, user.useDemoServer);
 
     if (fromCache || user.basePath == null || user.basePath!.isEmpty) {
       requestBasePath(user);
@@ -48,11 +46,10 @@ class UserController extends GetxController {
   void logout() {
     searchIndex.value = "";
     var currentUserValue = user.value;
-    var isUseDemoServer = currentUserValue.useDemoServer;
     var guest = currentUserValue.guest;
     var newUserValue = User(
-      baseUrl: isUseDemoServer ? "" : currentUserValue.baseUrl,
-      serverUrl: isUseDemoServer ? "" : currentUserValue.serverUrl,
+      baseUrl: currentUserValue.baseUrl,
+      serverUrl: currentUserValue.serverUrl,
       guest: false,
       username: currentUserValue.username,
       password: currentUserValue.password,
@@ -62,11 +59,6 @@ class UserController extends GetxController {
     SpUtil.remove(AlistConstant.guest);
     SpUtil.remove(AlistConstant.token);
     SpUtil.remove(AlistConstant.basePath);
-    if (isUseDemoServer) {
-      SpUtil.remove(AlistConstant.useDemoServer);
-      SpUtil.remove(AlistConstant.serverUrl);
-      SpUtil.remove(AlistConstant.baseUrl);
-    }
     if (guest) {
       SpUtil.remove(AlistConstant.username);
     }
@@ -91,7 +83,6 @@ class UserController extends GetxController {
             password: originalUser.password,
             token: originalUser.token,
             basePath: data.basePath,
-            useDemoServer: originalUser.useDemoServer,
           );
         }
       },
@@ -110,7 +101,6 @@ class User {
   final String? password;
   final String? token;
   final String? basePath;
-  final bool useDemoServer;
 
   User({
     required this.baseUrl,
@@ -120,6 +110,5 @@ class User {
     this.password,
     this.token,
     this.basePath,
-    this.useDemoServer = false,
   });
 }

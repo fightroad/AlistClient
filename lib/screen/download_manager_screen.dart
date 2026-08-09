@@ -17,7 +17,6 @@ import 'package:alist/util/download/download_manager.dart';
 import 'package:alist/util/download/download_task_status.dart';
 import 'package:alist/util/file_type.dart';
 import 'package:alist/util/file_utils.dart';
-import 'package:alist/util/markdown_utils.dart';
 import 'package:alist/util/named_router.dart';
 import 'package:alist/util/proxy.dart';
 import 'package:alist/util/string_utils.dart';
@@ -637,7 +636,7 @@ class DownloadManagerController extends GetxController {
         proxyServer.makeContentUri(item.remotePath ?? "/", fileContent);
 
     await Get.toNamed(NamedRouter.web, arguments: {
-      "url": MarkdownUtil.makePreviewUrl(proxyUri.toString()),
+      "url": proxyUri.toString(),
       "title": item.name
     });
     proxyServer.stop();

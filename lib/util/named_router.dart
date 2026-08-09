@@ -17,12 +17,6 @@ class NamedRouter {
   // video player
   static const videoPlayer = "/videoPlayer";
 
-  // donate
-  static const donate = "/donate";
-
-  // donate
-  static const about = "/about";
-
   // gallery
   static const gallery = "/gallery";
 

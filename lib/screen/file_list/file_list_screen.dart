@@ -32,7 +32,6 @@ import 'package:alist/util/file_type.dart';
 import 'package:alist/util/file_utils.dart';
 import 'package:alist/util/focus_node_utils.dart';
 import 'package:alist/util/log_utils.dart';
-import 'package:alist/util/markdown_utils.dart';
 import 'package:alist/util/named_router.dart';
 import 'package:alist/util/nature_sort.dart';
 import 'package:alist/util/proxy.dart';
@@ -1033,7 +1032,7 @@ class _FileListScreenState extends State<FileListScreen>
     var fileLink = await FileUtils.makeFileLink(file.path, file.sign);
     if (fileLink != null) {
       Get.toNamed(NamedRouter.web, arguments: {
-        "url": MarkdownUtil.makePreviewUrl(fileLink),
+        "url": fileLink,
         "title": file.name
       });
     }
@@ -1107,7 +1106,7 @@ class _FileListView extends StatelessWidget {
               onTap: () {
                 if (GetUtils.isURL(readme!)) {
                   Get.toNamed(NamedRouter.web, arguments: {
-                    "url": MarkdownUtil.makePreviewUrl(readme!),
+                    "url": readme!,
                     "title": "README.md"
                   });
                 } else {
@@ -1173,7 +1172,7 @@ class _FileListView extends StatelessWidget {
     LogUtil.d("proxyUri ${proxyUri.toString()}");
 
     await Get.toNamed(NamedRouter.web, arguments: {
-      "url": MarkdownUtil.makePreviewUrl(proxyUri.toString()),
+      "url": proxyUri.toString(),
       "title": "README.md"
     });
     proxyServer.stop();
