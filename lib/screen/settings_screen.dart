@@ -60,7 +60,12 @@ class _SettingsContainerState extends State<_SettingsContainer>
       tileColor: Theme.of(context).colorScheme.background.withAlpha(125),
       minVerticalPadding: 15,
       leading: settingsMenu.iconData != null
-          ? Icon(settingsMenu.iconData)
+          ? Icon(
+              settingsMenu.iconData,
+              size: 24,
+              // Same mint as settings_screen_*.png assets (#70C6BE)
+              color: const Color(0xFF70C6BE),
+            )
           : Image.asset(settingsMenu.icon!),
       title: Text(settingsMenu.name),
       trailing: Image.asset(

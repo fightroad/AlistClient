@@ -29,7 +29,9 @@ class Intl {
   static const String shareDialog_title_create = "shareDialog_title_create";
   static const String shareDialog_title_edit = "shareDialog_title_edit";
   static const String shareDialog_label_password = "shareDialog_label_password";
+  static const String shareDialog_hint_passwordEmpty = "shareDialog_hint_passwordEmpty";
   static const String shareDialog_btn_randomPassword = "shareDialog_btn_randomPassword";
+  static const String shareDialog_btn_clearPassword = "shareDialog_btn_clearPassword";
   static const String shareDialog_label_expires = "shareDialog_label_expires";
   static const String shareDialog_label_maxAccessed = "shareDialog_label_maxAccessed";
   static const String shareDialog_label_remark = "shareDialog_label_remark";
@@ -47,6 +49,8 @@ class Intl {
   static const String shareResult_btn_copy = "shareResult_btn_copy";
   static const String shareResult_btn_close = "shareResult_btn_close";
   static const String shareResult_tips_copied = "shareResult_tips_copied";
+  static const String shareCopy_link = "shareCopy_link";
+  static const String shareCopy_password = "shareCopy_password";
   static const String shareManager_empty = "shareManager_empty";
   static const String shareManager_menu_copyLink = "shareManager_menu_copyLink";
   static const String shareManager_menu_edit = "shareManager_menu_edit";

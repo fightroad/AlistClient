@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:alist/entity/share_entity.dart';
+import 'package:alist/l10n/intl_keys.dart';
 import 'package:alist/net/dio_utils.dart';
 import 'package:alist/util/user_controller.dart';
 import 'package:flutter/services.dart';
@@ -30,18 +31,21 @@ class ShareUtils {
 
   static Future<void> copyShareLink(String shareId, {String? pwd}) async {
     final url = buildShareUrl(shareId);
-    var text = url;
+    final buffer = StringBuffer()
+      ..writeln("${Intl.shareCopy_link.tr}$url");
     if (pwd != null && pwd.isNotEmpty) {
-      text = "$url\npwd: $pwd";
+      buffer.write("${Intl.shareCopy_password.tr}$pwd");
     }
-    await Clipboard.setData(ClipboardData(text: text));
+    await Clipboard.setData(ClipboardData(text: buffer.toString().trimRight()));
   }
 
   /// days == null => permanent (omit expires)
   static String? expiresIsoFromDays(int? days) {
     if (days == null) return null;
     final expires = DateTime.now().toUtc().add(Duration(days: days));
-    return expires.toIso8601String();
+    // Dart omits timezone for UTC; OpenList expects RFC3339 with Z.
+    final iso = expires.toIso8601String();
+    return iso.endsWith("Z") ? iso : "${iso}Z";
   }
 
   static Map<String, dynamic> buildCreateOrUpdateBody({
@@ -52,6 +56,7 @@ class ShareUtils {
     int? maxAccessed,
     String? remark,
     bool? disabled,
+    int? accessed,
   }) {
     final body = <String, dynamic>{
       "files": files,
@@ -69,6 +74,9 @@ class ShareUtils {
     }
     if (disabled != null) {
       body["disabled"] = disabled;
+    }
+    if (accessed != null) {
+      body["accessed"] = accessed;
     }
     return body;
   }
@@ -109,6 +117,7 @@ class ShareUtils {
     int? maxAccessed,
     String? remark,
     bool? disabled,
+    int? accessed,
   }) async {
     ShareEntity? result;
     await DioUtils.instance.requestNetwork<ShareEntity>(
@@ -122,6 +131,7 @@ class ShareUtils {
         maxAccessed: maxAccessed,
         remark: remark,
         disabled: disabled,
+        accessed: accessed,
       ),
       onSuccess: (data) {
         result = data;

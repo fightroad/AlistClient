@@ -28,22 +28,26 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
   late final TextEditingController _maxAccessedController;
   late final TextEditingController _remarkController;
   late _ExpireOption _expireOption;
-  late _ExpireOption _initialExpireOption;
   late bool _disabled;
+  bool _expireTouched = false;
   bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
     final share = widget.share;
-    _pwdController = TextEditingController(text: share?.pwd ?? "");
+    _pwdController = TextEditingController(
+      text: share?.pwd ?? (widget.isEdit ? "" : ShareUtils.randomPassword()),
+    );
+    _pwdController.addListener(() {
+      if (mounted) setState(() {});
+    });
     _maxAccessedController = TextEditingController(
       text: share == null ? "0" : "${share.maxAccessed}",
     );
     _remarkController = TextEditingController(text: share?.remark ?? "");
     _disabled = share?.disabled ?? false;
     _expireOption = _inferExpireOption(share?.expires);
-    _initialExpireOption = _expireOption;
   }
 
   _ExpireOption _inferExpireOption(String? expires) {
@@ -52,7 +56,9 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
     }
     final dt = DateTime.tryParse(expires);
     if (dt == null) return _ExpireOption.never;
-    final days = dt.toUtc().difference(DateTime.now().toUtc()).inDays;
+    final remaining = dt.toUtc().difference(DateTime.now().toUtc());
+    if (remaining.isNegative) return _ExpireOption.d1;
+    final days = remaining.inDays;
     if (days <= 1) return _ExpireOption.d1;
     if (days <= 7) return _ExpireOption.d7;
     return _ExpireOption.d30;
@@ -71,9 +77,9 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
     }
   }
 
-  /// Keep original expiry when editing unless the chip selection changed.
+  /// Keep original expiry when editing unless the user changed the selection.
   String? _resolveExpires() {
-    if (widget.isEdit && _expireOption == _initialExpireOption) {
+    if (widget.isEdit && !_expireTouched) {
       final original = widget.share?.expires;
       if (original == null || original.isEmpty) {
         return null;
@@ -106,6 +112,7 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
           maxAccessed: maxAccessed,
           remark: _remarkController.text.trim(),
           disabled: _disabled,
+          accessed: widget.share!.accessed,
         );
         if (updated != null) {
           SmartDialog.dismiss(result: updated);
@@ -145,31 +152,68 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
               controller: _pwdController,
               decoration: InputDecoration(
                 labelText: Intl.shareDialog_label_password.tr,
-                suffixIcon: IconButton(
-                  tooltip: Intl.shareDialog_btn_randomPassword.tr,
-                  onPressed: () {
-                    _pwdController.text = ShareUtils.randomPassword();
-                    _pwdController.selection = TextSelection.fromPosition(
-                      TextPosition(offset: _pwdController.text.length),
-                    );
-                  },
-                  icon: const Icon(Icons.casino_outlined),
+                hintText: Intl.shareDialog_hint_passwordEmpty.tr,
+                suffixIcon: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_pwdController.text.isNotEmpty)
+                      IconButton(
+                        tooltip: Intl.shareDialog_btn_clearPassword.tr,
+                        onPressed: () {
+                          _pwdController.clear();
+                        },
+                        icon: const Icon(Icons.close),
+                      ),
+                    TextButton(
+                      onPressed: () {
+                        _pwdController.text = ShareUtils.randomPassword();
+                        _pwdController.selection = TextSelection.fromPosition(
+                          TextPosition(offset: _pwdController.text.length),
+                        );
+                      },
+                      child: Text(Intl.shareDialog_btn_randomPassword.tr),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Text(Intl.shareDialog_label_expires.tr),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 8,
-              children: [
-                _expireChip(_ExpireOption.never, Intl.shareDialog_expires_never.tr),
-                _expireChip(_ExpireOption.d1, Intl.shareDialog_expires_1d.tr),
-                _expireChip(_ExpireOption.d7, Intl.shareDialog_expires_7d.tr),
-                _expireChip(_ExpireOption.d30, Intl.shareDialog_expires_30d.tr),
+            const SizedBox(height: 8),
+            SegmentedButton<_ExpireOption>(
+              segments: [
+                ButtonSegment(
+                  value: _ExpireOption.never,
+                  label: Text(Intl.shareDialog_expires_never.tr),
+                ),
+                ButtonSegment(
+                  value: _ExpireOption.d1,
+                  label: Text(Intl.shareDialog_expires_1d.tr),
+                ),
+                ButtonSegment(
+                  value: _ExpireOption.d7,
+                  label: Text(Intl.shareDialog_expires_7d.tr),
+                ),
+                ButtonSegment(
+                  value: _ExpireOption.d30,
+                  label: Text(Intl.shareDialog_expires_30d.tr),
+                ),
               ],
+              selected: {_expireOption},
+              showSelectedIcon: false,
+              style: const ButtonStyle(
+                visualDensity: VisualDensity.compact,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onSelectionChanged: (selection) {
+                if (selection.isEmpty) return;
+                setState(() {
+                  _expireTouched = true;
+                  _expireOption = selection.first;
+                });
+              },
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             TextField(
               controller: _maxAccessedController,
               keyboardType: TextInputType.number,
@@ -177,7 +221,7 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
                 labelText: Intl.shareDialog_label_maxAccessed.tr,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             TextField(
               controller: _remarkController,
               decoration: InputDecoration(
@@ -185,7 +229,7 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
               ),
             ),
             if (widget.isEdit) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(Intl.shareDialog_label_disabled.tr),
@@ -201,21 +245,13 @@ class _ShareFormDialogState extends State<ShareFormDialog> {
           onPressed: _submitting ? null : () => SmartDialog.dismiss(),
           child: Text(Intl.shareDialog_btn_cancel.tr),
         ),
-        TextButton(
+        FilledButton(
           onPressed: _submitting ? null : _submit,
           child: Text(widget.isEdit
               ? Intl.shareDialog_btn_save.tr
               : Intl.shareDialog_btn_create.tr),
         ),
       ],
-    );
-  }
-
-  Widget _expireChip(_ExpireOption option, String label) {
-    return ChoiceChip(
-      label: Text(label),
-      selected: _expireOption == option,
-      onSelected: (_) => setState(() => _expireOption = option),
     );
   }
 }

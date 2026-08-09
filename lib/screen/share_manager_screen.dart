@@ -1,5 +1,6 @@
 import 'package:alist/entity/share_entity.dart';
 import 'package:alist/l10n/intl_keys.dart';
+import 'package:alist/util/file_utils.dart';
 import 'package:alist/util/share_utils.dart';
 import 'package:alist/widget/alist_scaffold.dart';
 import 'package:alist/widget/share_dialog.dart';
@@ -75,9 +76,7 @@ class _ShareListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final filesText = share.files.isEmpty ? "-" : share.files.join("\n");
     final maxText = share.maxAccessed <= 0 ? "∞" : "${share.maxAccessed}";
-    final expiresText = (share.expires == null || share.expires!.isEmpty)
-        ? Intl.shareManager_expires_never.tr
-        : share.expires!;
+    final expiresText = _formatExpires(share.expires);
     final statusText = share.disabled
         ? Intl.shareManager_status_disabled.tr
         : Intl.shareManager_status_enabled.tr;
@@ -143,6 +142,17 @@ class _ShareListTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatExpires(String? expires) {
+    if (expires == null || expires.isEmpty) {
+      return Intl.shareManager_expires_never.tr;
+    }
+    final dt = DateTime.tryParse(expires);
+    if (dt == null) {
+      return expires;
+    }
+    return FileUtils.getReformatTime(dt.toLocal(), expires);
   }
 }
 
@@ -261,7 +271,16 @@ class ShareManagerController extends GetxController {
     final ok = await ShareUtils.deleteShare(share.id);
     if (ok) {
       shares.removeWhere((e) => e.id == share.id);
+      if (_total > 0) {
+        _total -= 1;
+      }
+      hasMore.value = shares.length < _total;
       SmartDialog.showToast(Intl.shareManager_tips_deleted.tr);
+      if (shares.isEmpty && hasMore.value) {
+        await refreshList();
+      } else if (!hasMore.value) {
+        refreshController.loadNoData();
+      }
     }
   }
 }
