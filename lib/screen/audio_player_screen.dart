@@ -378,21 +378,23 @@ class AudioPlayerScreenController extends GetxController {
         Uri.file(audio.localPath!),
         tag: mediaItem,
       );
-    } else {
-      if (GetPlatform.isDesktop) {
-        return ProgressiveAudioSource(Uri.parse(uri), tag: mediaItem);
-      } else {
-        var headers = <String, String>{};
-        if (audio.provider == "BaiduNetdisk") {
-          headers["User-Agent"] = "pan.baidu.com";
-        }
-        return AlistLockCachingAudioSource(
-          Uri.parse(uri),
-          headers: headers,
-          tag: mediaItem,
-        );
-      }
     }
+
+    // Remote: use local proxy so 302 + Baidu UA work on all platforms.
+    final previewUrl = await FileUtils.makePreviewUrl(
+      audio.remotePath,
+      audio.sign,
+      provider: audio.provider,
+      toastShowTips: false,
+    );
+    final playUri = Uri.parse(previewUrl ?? uri);
+    if (GetPlatform.isDesktop) {
+      return ProgressiveAudioSource(playUri, tag: mediaItem);
+    }
+    return AlistLockCachingAudioSource(
+      playUri,
+      tag: mediaItem,
+    );
   }
 
   Future<Uri> _localMusicArtUri() async {

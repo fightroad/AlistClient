@@ -6,7 +6,9 @@ import 'package:alist/util/string_utils.dart';
 import 'package:flustars/flustars.dart';
 import 'package:flutter/cupertino.dart';
 
-/// 使用代理服务器规避重定向后header设置失效、下载链接有效期过短等问题
+/// Local proxy so WebView / players can consume OpenList `/d/` 302 links and
+/// provider headers (e.g. Baidu UA) without relying on the client to follow
+/// redirects correctly.
 class ProxyServer {
   static const tag = "ProxyServer";
   static const headerFlag = "alistheader_";
@@ -21,6 +23,17 @@ class ProxyServer {
   final _content = <String, String>{};
   final _files = <String, File>{};
   static const _maxRedirectTimes = 20;
+
+  // Hop-by-hop / identity headers that must not be forwarded to OpenList/CDN.
+  static const _blockedRequestHeaders = {
+    "host",
+    "x-device-id",
+    "referer",
+    "origin",
+    "content-length",
+    "connection",
+    "transfer-encoding",
+  };
 
   // 正在代理的链接数量
   var _runningConnectionsCnt = 0;
@@ -78,18 +91,7 @@ class ProxyServer {
 
     var httpClientRequest = await httpClient.openUrl(request.method, uri);
     httpClientRequest.followRedirects = false;
-
-    // Copy all request headers.
-    request.headers.forEach((String name, List<String> values) {
-      if (_isValidRequestHeader(name)) {
-        httpClientRequest.headers.set(name, values);
-      }
-      // LogUtil.d("header $name=$values", tag: tag);
-    });
-    extraHeaders.forEach((key, value) {
-      // LogUtil.d("extraHeader $key=$value", tag: tag);
-      httpClientRequest.headers.set(key, value);
-    });
+    _applyUpstreamHeaders(httpClientRequest, request, extraHeaders);
 
     // 非重定向情况 copy 请求体
     if (redirectCacheValue == null) {
@@ -111,35 +113,27 @@ class ProxyServer {
         httpClientResponse.isRedirect &&
         redirectTimes < _maxRedirectTimes) {
       redirectTimes++;
-      httpClientResponse.drain();
+      await httpClientResponse.drain();
       var location =
           httpClientResponse.headers.value(HttpHeaders.locationHeader);
-      if (location != null) {
-        _addRedirectCache(uri, location);
-      }
-
-      // 循环查询重定向缓存
-      location = _findTheFinalLocationFromCache(location);
-
-      if (location != null) {
-        uri = uri.resolve(location);
-        httpClientRequest = await httpClient.getUrl(uri);
-        // Set the body or headers as desired.
-        httpClientRequest.followRedirects = false;
-        request.headers.forEach((String name, List<String> values) {
-          // LogUtil.d("header $name=$values", tag: tag);
-          if (_isValidRequestHeader(name)) {
-            httpClientRequest.headers.set(name, values);
-          }
-        });
-        extraHeaders.forEach((key, value) {
-          // LogUtil.d("extraHeader $key=$value", tag: tag);
-          httpClientRequest.headers.set(key, value);
-        });
-        httpClientResponse = await httpClientRequest.close();
-      } else {
+      if (location == null || location.isEmpty) {
         break;
       }
+
+      final absoluteLocation = uri.resolve(location).toString();
+      _addRedirectCache(uri, absoluteLocation);
+      location = _findTheFinalLocationFromCache(absoluteLocation);
+      if (location == null || location.isEmpty) {
+        break;
+      }
+
+      uri = Uri.parse(location);
+      httpClientRequest = await httpClient.openUrl(request.method, uri);
+      httpClientRequest.followRedirects = false;
+      // After cross-origin redirect, only keep intentional extra headers
+      // (e.g. Baidu UA) plus safe request headers like Range.
+      _applyUpstreamHeaders(httpClientRequest, request, extraHeaders);
+      httpClientResponse = await httpClientRequest.close();
     }
 
     if (isRequestDone) {
@@ -171,6 +165,21 @@ class ProxyServer {
       request.response.close();
     }
     _clearInvalidRedirectCache();
+  }
+
+  void _applyUpstreamHeaders(
+    HttpClientRequest upstream,
+    HttpRequest clientRequest,
+    Map<String, String> extraHeaders,
+  ) {
+    clientRequest.headers.forEach((String name, List<String> values) {
+      if (_isValidRequestHeader(name)) {
+        upstream.headers.set(name, values);
+      }
+    });
+    extraHeaders.forEach((key, value) {
+      upstream.headers.set(key, value);
+    });
   }
 
   void _writeContentResponse(String contentKey, HttpRequest request) {
@@ -206,7 +215,7 @@ class ProxyServer {
   }
 
   bool _isValidRequestHeader(String name) =>
-      name.toLowerCase() != "host" && name.toLowerCase() != "x-device-id";
+      !_blockedRequestHeaders.contains(name.toLowerCase());
 
   // 清除已过期的重定向缓存
   void _clearInvalidRedirectCache() {
@@ -222,10 +231,11 @@ class ProxyServer {
     }
   }
 
-  // 添加一个缓存
-  void _addRedirectCache(Uri uri, String location) {
+  // 添加一个缓存（location 应为绝对 URL）
+  void _addRedirectCache(Uri uri, String absoluteLocation) {
     var validTime = DateTime.now().millisecondsSinceEpoch + 10 * 60 * 1000;
-    _redirectCache[uri.toString()] = RedirectCacheValue(location, validTime);
+    _redirectCache[uri.toString()] =
+        RedirectCacheValue(absoluteLocation, validTime);
   }
 
   // 查询到一个有效期内的缓存

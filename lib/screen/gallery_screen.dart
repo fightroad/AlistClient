@@ -56,9 +56,13 @@ class GalleryScreen extends StatelessWidget {
         onMenuClickCallback: (menuId) {
           switch (menuId) {
             case GalleryMenuId.copyLink:
-              Clipboard.setData(
-                  ClipboardData(text: controller.urls[controller.index.value]));
-              SmartDialog.showToast(Intl.galleryScreen_copied.tr);
+              final files = controller.files;
+              final index = controller.index.value;
+              if (files != null && index >= 0 && index < files.length) {
+                FileUtils.copyFileLink(files[index].remotePath, files[index].sign);
+              } else {
+                SmartDialog.showToast(Intl.tips_makeFileLink_failed.tr);
+              }
               break;
             case GalleryMenuId.saveToAlbum:
               controller.saveToAlbum(controller.index.value);

@@ -87,19 +87,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       return;
     }
 
-    var target = await FileUtils.makeFileLink(file.remotePath, file.sign);
-    if (target != null) {
-      var url = target.toString();
-      LogUtil.d("provider=${file.provider}");
-      if (file.provider == "BaiduNetdisk") {
-        await _proxyServer.start();
-        var uri = _proxyServer.makeProxyUrl(url,
-            headers: {HttpHeaders.userAgentHeader: "pan.baidu.com"});
-        await _fAliplayer.setUrl(uri.toString());
-      } else {
-        await _fAliplayer.setUrl(url);
-      }
-
+    var url = await FileUtils.makePreviewUrl(
+      file.remotePath,
+      file.sign,
+      provider: file.provider,
+    );
+    if (url != null) {
+      await _fAliplayer.setUrl(url);
       _findAndCacheViewingRecord(file);
     }
   }

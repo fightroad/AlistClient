@@ -45,7 +45,6 @@ class VideoPlayerUtil {
       {String? playerType}) async {
     if (Platform.isAndroid) {
       var videosParams = <Map<String, String?>>[];
-      Map<String, String> headers = {};
 
       for (var element in videos) {
         var videoParam = <String, String?>{};
@@ -56,22 +55,29 @@ class VideoPlayerUtil {
         videoParam["sign"] = element.sign;
         videoParam["provider"] = element.provider;
         videoParam["thumb"] = element.thumb;
-        videoParam["url"] =
-            await FileUtils.makeFileLink(element.remotePath, element.sign);
+        // Baidu (and any future header-needed provider): proxy embeds headers.
+        // Others use `/d/` directly; Exo/IJK follow 302.
+        if (FileUtils.isBaiduNetdisk(element.provider)) {
+          videoParam["url"] = await FileUtils.makePreviewUrl(
+            element.remotePath,
+            element.sign,
+            provider: element.provider,
+            toastShowTips: false,
+          );
+        } else {
+          videoParam["url"] =
+              await FileUtils.makeFileLink(element.remotePath, element.sign);
+        }
         videoParam["modifiedMilliseconds"] =
             element.modifiedMilliseconds?.toString();
         videoParam["size"] = element.size?.toString();
         if (videoParam["url"] == null || videoParam["url"] == "") {
           return;
         }
-
-        if (element.provider == "BaiduNetdisk") {
-          headers["User-Agent"] = "pan.baidu.com";
-        }
       }
       playerType ??= SpUtil.getString(AlistConstant.playerType);
       AlistPlugin.playVideoWithInternalPlayer(
-          videosParams, index, headers, playerType);
+          videosParams, index, const <String, String>{}, playerType);
     } else {
       Get.toNamed(
         NamedRouter.videoPlayer,
@@ -107,33 +113,31 @@ class VideoPlayerUtil {
         return launchUrl(uri);
       }
     } else {
-      var videoUrl = await FileUtils.makeFileLink(remotePath, sign);
+      var packageName = videoPlayerRouter.substringBeforeLast("/")!;
+      if (Platform.isIOS && packageName.startsWith("nplayer-")) {
+        // nplayer 不支持302跳转播放
+        var rawUrl = await requestRawUrl(remotePath, password);
+        if (rawUrl != null) {
+          var uri = Uri.parse("$packageName$rawUrl");
+          return launchUrl(uri);
+        } else {
+          SmartDialog.showToast(Intl.tips_request_raw_url_failed.tr);
+          return false;
+        }
+      }
+
+      // External players: always proxy so 302 + Baidu UA work.
+      var videoUrl = await FileUtils.makePreviewUrl(
+        remotePath,
+        sign,
+        provider: provider,
+      );
       if (videoUrl == null) {
         return true;
       }
 
       LogUtil.d("provider=$provider");
-      if (provider == "BaiduNetdisk") {
-        ProxyServer proxyServer = Get.find();
-        await proxyServer.start();
-        var uri = proxyServer.makeProxyUrl(videoUrl,
-            headers: {HttpHeaders.userAgentHeader: "pan.baidu.com"});
-        videoUrl = uri.toString();
-      }
-
-      var packageName = videoPlayerRouter.substringBeforeLast("/")!;
       if (Platform.isIOS) {
-        if (packageName.startsWith("nplayer-")) {
-          // nplayer 不支持302跳转播放
-          var rawUrl = await requestRawUrl(remotePath, password);
-          if (rawUrl != null) {
-            var uri = Uri.parse("$packageName$rawUrl");
-            return launchUrl(uri);
-          } else {
-            SmartDialog.showToast(Intl.tips_request_raw_url_failed.tr);
-            return false;
-          }
-        }
         var uri = Uri.parse("$packageName$videoUrl");
         return launchUrl(uri);
       } else {
