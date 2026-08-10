@@ -59,7 +59,7 @@ class _FileReaderContainerState extends State<_FileReaderContainer> {
             _downloadProgress =
                 (task.downloaded / task.contentLength! * 100).round().clamp(0, 99);
           } else if (task.downloaded > 0) {
-            // Unknown total size (common after Aliyun 302): keep spinner text
+            // Unknown total size (common after CDN 302): keep spinner text
             // without a fake 0%.
             _downloadProgress = -1;
           }
@@ -145,14 +145,7 @@ class _FileReaderContainerState extends State<_FileReaderContainer> {
 
   void _download(FileReaderItem item) async {
     final fileType = widget.fileReaderItem.fileType;
-    final requestHeaders = <String, dynamic>{};
-    var limitFrequency = 0;
-    if (FileUtils.isBaiduNetdisk(item.provider)) {
-      requestHeaders["User-Agent"] = "pan.baidu.com";
-    } else if (FileUtils.needsDownloadRateLimit(item.provider)) {
-      // 阿里云盘下载请求频率限制为 1s/次
-      limitFrequency = 1;
-    }
+    final requestHeaders = FileUtils.downloadHeadersFor(item.provider);
 
     // Already downloaded (e.g. from download manager).
     if (item.localPath != null &&
@@ -174,7 +167,6 @@ class _FileReaderContainerState extends State<_FileReaderContainer> {
       sign: item.sign ?? "",
       thumb: item.thumb,
       requestHeaders: requestHeaders,
-      limitFrequency: limitFrequency,
     );
     if (_downloadTask == null) {
       setState(() {

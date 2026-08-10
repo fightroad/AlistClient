@@ -351,23 +351,13 @@ class _RecentsScreenState extends State<RecentsScreen>
                     onTap: () async {
                       Navigator.pop(context);
 
-                      final requestHeaders = <String, dynamic>{};
-                      var limitFrequency = 0;
-                      if (record.provider == "BaiduNetdisk") {
-                        requestHeaders[HttpHeaders.userAgentHeader] =
-                            "pan.baidu.com";
-                      } else if (FileUtils.needsDownloadRateLimit(
-                          record.provider)) {
-                        // 阿里云盘下载请求频率限制为 1s/次
-                        limitFrequency = 1;
-                      }
                       final task = await DownloadManager.instance.enqueue(
                           name: record.name,
                           remotePath: record.remotePath,
                           sign: record.sign ?? "",
                           thumb: record.thumb,
-                          requestHeaders: requestHeaders,
-                          limitFrequency: limitFrequency);
+                          requestHeaders:
+                              FileUtils.downloadHeadersFor(record.provider));
                       if (task != null) {
                         var isFirstTimeDownload = SpUtil.getBool(
                           AlistConstant.isFirstTimeDownload,

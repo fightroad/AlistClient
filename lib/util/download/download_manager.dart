@@ -151,14 +151,7 @@ class DownloadManager {
 
   Future<DownloadTask?> enqueueFile(FileItemVO file,
       {CancelToken? cancelToken, bool ignoreDuplicates = false}) async {
-    final requestHeaders = <String, dynamic>{};
-    var limitFrequency = 0;
-    if (FileUtils.isBaiduNetdisk(file.provider)) {
-      requestHeaders[HttpHeaders.userAgentHeader] = "pan.baidu.com";
-    } else if (FileUtils.needsDownloadRateLimit(file.provider)) {
-      // 阿里云盘下载请求频率限制为 1s/次
-      limitFrequency = 1;
-    }
+    final requestHeaders = FileUtils.downloadHeadersFor(file.provider);
 
     return enqueue(
         name: file.name,
@@ -166,7 +159,6 @@ class DownloadManager {
         sign: file.sign,
         thumb: file.thumb,
         requestHeaders: requestHeaders,
-        limitFrequency: limitFrequency,
         cancelToken: cancelToken,
         ignoreDuplicates: ignoreDuplicates);
   }

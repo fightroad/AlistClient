@@ -21,15 +21,17 @@ final dateFormatThatYear = DateFormat("yyyy/MM/dd HH:mm");
 final now = DateTime.now();
 
 class FileUtils {
-  /// Providers that need download URL rate limiting (e.g. Aliyun Drive).
-  static bool needsDownloadRateLimit(String? provider) {
-    if (provider == null || provider.isEmpty) return false;
-    final p = provider.toLowerCase();
-    return p.contains("aliyun") || p.contains("alipan");
-  }
-
   static bool isBaiduNetdisk(String? provider) {
     return provider == "BaiduNetdisk";
+  }
+
+  /// Provider-specific request headers for `/d/` download (OpenList Link.Header).
+  /// Only Baidu needs this today; others use the generic path.
+  static Map<String, dynamic> downloadHeadersFor(String? provider) {
+    if (isBaiduNetdisk(provider)) {
+      return {HttpHeaders.userAgentHeader: "pan.baidu.com"};
+    }
+    return {};
   }
 
   static FileType getFileType(bool isDir, String name) {
@@ -281,8 +283,8 @@ class FileUtils {
     return url;
   }
 
-  /// Build a local-proxy URL so 302 redirects (Aliyun etc.) and Baidu UA work
-  /// for WebView / image loading.
+  /// Build a local-proxy URL so 302 redirects and Baidu UA work for WebView /
+  /// image loading.
   static Future<String?> makePreviewUrl(
     String path,
     String? sign, {
@@ -295,10 +297,8 @@ class FileUtils {
     }
     final proxyServer = Get.find<ProxyServer>();
     await proxyServer.start();
-    final headers = <String, String>{};
-    if (isBaiduNetdisk(provider)) {
-      headers[HttpHeaders.userAgentHeader] = "pan.baidu.com";
-    }
+    final headers = downloadHeadersFor(provider)
+        .map((key, value) => MapEntry(key, value.toString()));
     return proxyServer
         .makeProxyUrl(url, headers: headers.isEmpty ? null : headers)
         .toString();

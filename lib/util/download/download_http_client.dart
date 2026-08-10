@@ -17,8 +17,8 @@ class DownloadHttpClient {
 
   DownloadHttpClient();
 
-  // limitFrequency 用于解决部分网盘（如：阿里云盘）存在下载链接请求频率限制的问题
-  // limitFrequency 为与上一次请求的最小时间隔，单位：秒
+  // Optional min interval between requests (seconds). Kept for API/DB compat;
+  // callers should not need provider-specific rate limits (OpenList handles that).
   Future<HttpClientResponse> get(String url,
       {Map<String, dynamic>? headers, int? limitFrequency}) async {
     if (limitFrequency == null || limitFrequency < 1) {
@@ -43,24 +43,24 @@ class DownloadHttpClient {
     }
   }
 
-  /// Manually follow redirects so Host/Range headers from the OpenList URL
-  /// are not incorrectly reused on Alibaba CDN temporary links.
+  /// Follow OpenList `/d/` 302 → CDN redirects for all storages.
+  /// Do not reuse Host from the OpenList hop on the CDN URL.
   Future<HttpClientResponse> _getWithRedirects(String url,
       {Map<String, dynamic>? headers}) async {
     var uri = Uri.parse(url);
-    final originalHeaders = <String, dynamic>{...?headers};
-    // Never force Host across redirects; let HttpClient set it per hop.
-    originalHeaders.remove(HttpHeaders.hostHeader);
-    originalHeaders.remove("Host");
-    originalHeaders.remove("host");
+    final headersToSend = <String, dynamic>{...?headers};
+    _stripHostHeader(headersToSend);
 
     HttpClientResponse? response;
     for (var i = 0; i <= _maxRedirectTimes; i++) {
       final request = await _httpClient.openUrl("GET", uri);
       request.followRedirects = false;
-      originalHeaders.forEach((key, value) {
-        LogUtil.d("header $key=$value");
-        request.headers.set(key, value);
+      headersToSend.forEach((key, value) {
+        if (value == null) return;
+        final text = value.toString();
+        if (text.isEmpty) return;
+        LogUtil.d("header $key=$text");
+        request.headers.set(key, text);
       });
 
       response = await request.close().timeout(_idleTimeout);
@@ -69,14 +69,29 @@ class DownloadHttpClient {
       }
 
       final location = response.headers.value(HttpHeaders.locationHeader);
-      await response.drain();
+      try {
+        await response.drain().timeout(_connectTimeout);
+      } catch (e) {
+        LogUtil.d("drain redirect body failed: $e");
+      }
       if (location == null || location.isEmpty) {
         throw HttpException("Redirect without Location from $uri");
       }
-      uri = uri.resolve(location);
+
+      final next = uri.resolve(location);
+      if (next.host != uri.host) {
+        _stripHostHeader(headersToSend);
+      }
+      uri = next;
       LogUtil.d("download redirect -> $uri");
     }
 
     throw HttpException("Too many redirects for $url");
+  }
+
+  void _stripHostHeader(Map<String, dynamic> headers) {
+    headers.remove(HttpHeaders.hostHeader);
+    headers.remove("Host");
+    headers.remove("host");
   }
 }

@@ -87,18 +87,11 @@ class TextReaderScreenController extends GetxController {
         return;
       }
 
-      final headers = <String, dynamic>{};
-      var limitFrequency = 0;
-      if (FileUtils.isBaiduNetdisk(item.provider)) {
-        headers[HttpHeaders.userAgentHeader] = "pan.baidu.com";
-      } else if (FileUtils.needsDownloadRateLimit(item.provider)) {
-        limitFrequency = 1;
-      }
+      final headers = FileUtils.downloadHeadersFor(item.provider);
 
       final response = await _httpClient.get(
         url,
         headers: headers,
-        limitFrequency: limitFrequency,
       );
       if (response.statusCode < 200 || response.statusCode >= 300) {
         errMsg.value = "HTTP ${response.statusCode}";
